@@ -1,0 +1,1276 @@
+{
+  "version": 1,
+  "defaults": {
+    "refresh_seconds": 20,
+    "startup_scan_timeout": 8,
+    "feed_timeout": 8,
+    "max_items_per_source": 10,
+    "history_hours": 12,
+    "visible_news": 24,
+    "workers": 6,
+    "recheck_failed_hours": 24,
+    "dedupe_window_hours": 12
+  },
+  "sources": [
+    {
+      "id": "ria",
+      "name": "РИА Новости",
+      "url": "https://ria.ru/export/rss2/archive/index.xml",
+      "language": "ru",
+      "region": "RU",
+      "priority": 100,
+      "enabled": true
+    },
+    {
+      "id": "tass",
+      "name": "ТАСС",
+      "url": "https://tass.ru/rss/v2.xml",
+      "language": "ru",
+      "region": "RU",
+      "priority": 100,
+      "enabled": true
+    },
+    {
+      "id": "interfax",
+      "name": "Интерфакс",
+      "url": "https://www.interfax.ru/rss.asp",
+      "language": "ru",
+      "region": "RU",
+      "priority": 100,
+      "enabled": true
+    },
+    {
+      "id": "rbc",
+      "name": "РБК",
+      "url": "https://rssexport.rbc.ru/rbcnews/news/30/full.rss",
+      "language": "ru",
+      "region": "RU",
+      "priority": 100,
+      "enabled": true
+    },
+    {
+      "id": "kommersant",
+      "name": "Коммерсантъ",
+      "url": "https://www.kommersant.ru/RSS/news.xml",
+      "language": "ru",
+      "region": "RU",
+      "priority": 100,
+      "enabled": true
+    },
+    {
+      "id": "vedomosti",
+      "name": "Ведомости",
+      "url": "https://www.vedomosti.ru/rss/news",
+      "language": "ru",
+      "region": "RU",
+      "priority": 100,
+      "enabled": true
+    },
+    {
+      "id": "lenta",
+      "name": "Лента.ру",
+      "url": "https://lenta.ru/rss",
+      "language": "ru",
+      "region": "RU",
+      "priority": 100,
+      "enabled": true
+    },
+    {
+      "id": "gazeta",
+      "name": "Газета.Ru",
+      "url": "https://www.gazeta.ru/export/rss/first.xml",
+      "language": "ru",
+      "region": "RU",
+      "priority": 95,
+      "enabled": true
+    },
+    {
+      "id": "aif",
+      "name": "АиФ",
+      "url": "https://aif.ru/rss/all.php",
+      "language": "ru",
+      "region": "RU",
+      "priority": 95,
+      "enabled": true
+    },
+    {
+      "id": "mk",
+      "name": "МК",
+      "url": "https://www.mk.ru/rss/index.xml",
+      "language": "ru",
+      "region": "RU",
+      "priority": 90,
+      "enabled": true
+    },
+    {
+      "id": "rg",
+      "name": "Российская газета",
+      "url": "https://rg.ru/xml/index.xml",
+      "language": "ru",
+      "region": "RU",
+      "priority": 95,
+      "enabled": true
+    },
+    {
+      "id": "ng",
+      "name": "Независимая газета",
+      "url": "https://www.ng.ru/rss/",
+      "language": "ru",
+      "region": "RU",
+      "priority": 85,
+      "enabled": true
+    },
+    {
+      "id": "regnum",
+      "name": "REGNUM",
+      "url": "https://regnum.ru/rss",
+      "language": "ru",
+      "region": "RU",
+      "priority": 85,
+      "enabled": true
+    },
+    {
+      "id": "meduza",
+      "name": "Meduza",
+      "url": "https://meduza.io/rss/all",
+      "language": "ru",
+      "region": "RU",
+      "priority": 80,
+      "enabled": true
+    },
+    {
+      "id": "5tv",
+      "name": "Пятый канал",
+      "url": "https://www.5-tv.ru/news/rss/",
+      "language": "ru",
+      "region": "RU",
+      "priority": 85,
+      "enabled": true
+    },
+    {
+      "id": "m24",
+      "name": "Москва 24",
+      "url": "https://www.m24.ru/rss.xml",
+      "language": "ru",
+      "region": "RU",
+      "priority": 80,
+      "enabled": true
+    },
+    {
+      "id": "mosreg",
+      "name": "Подмосковье сегодня",
+      "url": "https://mosregtoday.ru/rss/",
+      "language": "ru",
+      "region": "RU",
+      "priority": 70,
+      "enabled": true
+    },
+    {
+      "id": "newsru",
+      "name": "NEWSru",
+      "url": "https://rss.newsru.com/top/big/",
+      "language": "ru",
+      "region": "RU",
+      "priority": 80,
+      "enabled": true
+    },
+    {
+      "id": "pravda",
+      "name": "Правда.ру",
+      "url": "https://www.pravda.ru/export.xml",
+      "language": "ru",
+      "region": "RU",
+      "priority": 80,
+      "enabled": true
+    },
+    {
+      "id": "habr",
+      "name": "Habr",
+      "url": "https://habr.com/ru/rss/articles/?fl=ru",
+      "language": "ru",
+      "region": "RU",
+      "priority": 60,
+      "enabled": true
+    },
+    {
+      "id": "cbr",
+      "name": "Банк России",
+      "url": "http://www.cbr.ru/rss/RssNews",
+      "language": "ru",
+      "region": "RU",
+      "priority": 95,
+      "enabled": true
+    },
+    {
+      "id": "cbr_press",
+      "name": "ЦБ Пресс-релизы",
+      "url": "http://www.cbr.ru/rss/RssPress",
+      "language": "ru",
+      "region": "RU",
+      "priority": 95,
+      "enabled": true
+    },
+    {
+      "id": "kremlin",
+      "name": "Кремлин.ру",
+      "url": "http://kremlin.ru/events/all/feed/",
+      "language": "ru",
+      "region": "RU",
+      "priority": 100,
+      "enabled": true
+    },
+    {
+      "id": "kremlin_en",
+      "name": "Kremlin EN",
+      "url": "http://en.kremlin.ru/events/all/feed",
+      "language": "en",
+      "region": "RU",
+      "priority": 90,
+      "enabled": true
+    },
+    {
+      "id": "russia_insider",
+      "name": "Russia Insider",
+      "url": "https://russia-insider.com/en/all-content/rss",
+      "language": "en",
+      "region": "RU",
+      "priority": 60,
+      "enabled": true
+    },
+    {
+      "id": "pravdareport",
+      "name": "PravdaReport",
+      "url": "https://www.pravdareport.com/export.xml",
+      "language": "en",
+      "region": "RU",
+      "priority": 60,
+      "enabled": true
+    },
+    {
+      "id": "tass_en",
+      "name": "ТАСС EN",
+      "url": "https://tass.com/rss/v2.xml",
+      "language": "en",
+      "region": "WORLD",
+      "priority": 70,
+      "enabled": true
+    },
+    {
+      "id": "moscowtimes_ru",
+      "name": "The Moscow Times",
+      "url": "https://www.themoscowtimes.com/rss/news",
+      "language": "en",
+      "region": "RU",
+      "priority": 60,
+      "enabled": true
+    },
+    {
+      "id": "china_xinhua",
+      "name": "Xinhua",
+      "url": "https://english.news.cn/rss/",
+      "language": "zh",
+      "region": "ASIA",
+      "priority": 80,
+      "enabled": true
+    },
+    {
+      "id": "china_daily",
+      "name": "China Daily",
+      "url": "https://www.chinadaily.com.cn/rss/china_rss.xml",
+      "language": "zh",
+      "region": "ASIA",
+      "priority": 75,
+      "enabled": true
+    },
+    {
+      "id": "cgtn",
+      "name": "CGTN",
+      "url": "https://russian.cgtn.com/rss",
+      "language": "zh",
+      "region": "ASIA",
+      "priority": 75,
+      "enabled": true
+    },
+    {
+      "id": "global_times",
+      "name": "Global Times",
+      "url": "https://www.globaltimes.cn/rss/outbrain.xml",
+      "language": "zh",
+      "region": "ASIA",
+      "priority": 70,
+      "enabled": true
+    },
+    {
+      "id": "people_daily",
+      "name": "People's Daily",
+      "url": "http://www.people.com.cn/rss/politics.xml",
+      "language": "zh",
+      "region": "ASIA",
+      "priority": 70,
+      "enabled": true
+    },
+    {
+      "id": "chinanews",
+      "name": "China News Service",
+      "url": "http://www.chinanews.com/rss/scroll-news.xml",
+      "language": "zh",
+      "region": "ASIA",
+      "priority": 65,
+      "enabled": true
+    },
+    {
+      "id": "bbc_world",
+      "name": "BBC WORLD",
+      "url": "https://feeds.bbci.co.uk/news/world/rss.xml",
+      "language": "en",
+      "region": "WORLD",
+      "priority": 50,
+      "enabled": true
+    },
+    {
+      "id": "dw_all",
+      "name": "DEUTSCHE WELLE",
+      "url": "https://rss.dw.com/rdf/rss-en-all",
+      "language": "en",
+      "region": "EUROPE",
+      "priority": 55,
+      "enabled": true
+    },
+    {
+      "id": "reuters_world",
+      "name": "Reuters World",
+      "url": "https://www.reutersagency.com/feed/?best-topics=world&post_type=best",
+      "language": "en",
+      "region": "WORLD",
+      "priority": 60,
+      "enabled": true
+    },
+    {
+      "id": "guardian_world",
+      "name": "THE GUARDIAN",
+      "url": "https://www.theguardian.com/world/rss",
+      "language": "en",
+      "region": "WORLD",
+      "priority": 50,
+      "enabled": true
+    },
+    {
+      "id": "aljazeera",
+      "name": "AL JAZEERA",
+      "url": "https://www.aljazeera.com/xml/rss/all.xml",
+      "language": "en",
+      "region": "WORLD",
+      "priority": 50,
+      "enabled": true
+    },
+    {
+      "id": "france24",
+      "name": "FRANCE 24",
+      "url": "https://www.france24.com/en/rss",
+      "language": "en",
+      "region": "EUROPE",
+      "priority": 50,
+      "enabled": true
+    },
+    {
+      "id": "spiegel",
+      "name": "DER SPIEGEL",
+      "url": "https://www.spiegel.de/international/index.rss",
+      "language": "de",
+      "region": "EUROPE",
+      "priority": 45,
+      "enabled": true
+    },
+    {
+      "id": "lemonde",
+      "name": "LE MONDE",
+      "url": "https://www.lemonde.fr/rss/une.xml",
+      "language": "fr",
+      "region": "EUROPE",
+      "priority": 45,
+      "enabled": true
+    },
+    {
+      "id": "scmp",
+      "name": "SCMP",
+      "url": "https://www.scmp.com/rss/91/feed",
+      "language": "en",
+      "region": "ASIA",
+      "priority": 50,
+      "enabled": true
+    },
+    {
+      "id": "japan_times",
+      "name": "JAPAN TIMES",
+      "url": "https://www.japantimes.co.jp/feed/",
+      "language": "en",
+      "region": "ASIA",
+      "priority": 45,
+      "enabled": true
+    },
+    {
+      "id": "times_india",
+      "name": "TIMES OF INDIA",
+      "url": "https://timesofindia.indiatimes.com/rssfeeds/296589292.cms",
+      "language": "en",
+      "region": "ASIA",
+      "priority": 40,
+      "enabled": true
+    },
+    {
+      "id": "npr",
+      "name": "NPR",
+      "url": "https://feeds.npr.org/1001/rss.xml",
+      "language": "en",
+      "region": "WORLD",
+      "priority": 45,
+      "enabled": true
+    },
+    {
+      "id": "un_news",
+      "name": "UN NEWS",
+      "url": "https://news.un.org/feed/subscribe/en/news/all/rss.xml",
+      "language": "en",
+      "region": "WORLD",
+      "priority": 50,
+      "enabled": true
+    },
+    {
+      "id": "un_ru",
+      "name": "ООН РУ",
+      "url": "https://news.un.org/feed/subscribe/ru/news/all/rss.xml",
+      "language": "ru",
+      "region": "RU",
+      "priority": 80,
+      "enabled": true
+    },
+    {
+      "id": "nasa",
+      "name": "NASA",
+      "url": "https://www.nasa.gov/rss/dyn/breaking_news.rss",
+      "language": "en",
+      "region": "WORLD",
+      "priority": 40,
+      "enabled": true
+    },
+    {
+      "id": "theverge",
+      "name": "THE VERGE",
+      "url": "https://www.theverge.com/rss/index.xml",
+      "language": "en",
+      "region": "WORLD",
+      "priority": 35,
+      "enabled": true
+    },
+    {
+      "id": "cointelegraph",
+      "name": "COINTELEGRAPH",
+      "url": "https://cointelegraph.com/rss",
+      "language": "en",
+      "region": "WORLD",
+      "priority": 30,
+      "enabled": true
+    },
+    {
+      "id": "investing",
+      "name": "INVESTING.COM",
+      "url": "https://www.investing.com/rss/news_25.rss",
+      "language": "en",
+      "region": "WORLD",
+      "priority": 40,
+      "enabled": true
+    },
+    {
+      "id": "cnbc",
+      "name": "CNBC",
+      "url": "https://www.cnbc.com/id/100003114/device/rss/rss.html",
+      "language": "en",
+      "region": "WORLD",
+      "priority": 40,
+      "enabled": true
+    },
+    {
+      "id": "kp",
+      "name": "Комсомольская правда",
+      "url": "https://www.kp.ru/rss/all.xml",
+      "language": "ru",
+      "region": "RU",
+      "priority": 88,
+      "enabled": true
+    },
+    {
+      "id": "interfax_subscribe",
+      "name": "Интерфакс Subscribe",
+      "url": "https://subscribe.ru/catalog/rss.380769",
+      "language": "ru",
+      "region": "RU",
+      "priority": 85,
+      "enabled": true
+    },
+    {
+      "id": "izvestia",
+      "name": "Известия",
+      "url": "https://iz.ru/xml/rss2",
+      "language": "ru",
+      "region": "RU",
+      "priority": 90,
+      "enabled": true
+    },
+    {
+      "id": "vesti",
+      "name": "Вести.Ru",
+      "url": "https://www.vesti.ru/vesti.rss",
+      "language": "ru",
+      "region": "RU",
+      "priority": 90,
+      "enabled": true
+    },
+    {
+      "id": "rosbalt",
+      "name": "Росбалт",
+      "url": "https://www.rosbalt.ru/rss.xml",
+      "language": "ru",
+      "region": "RU",
+      "priority": 75,
+      "enabled": true
+    },
+    {
+      "id": "fontanka",
+      "name": "Фонтанка",
+      "url": "https://www.fontanka.ru/fontanka.rss",
+      "language": "ru",
+      "region": "RU",
+      "priority": 78,
+      "enabled": true
+    },
+    {
+      "id": "expert",
+      "name": "Эксперт",
+      "url": "https://expert.ru/rss/",
+      "language": "ru",
+      "region": "RU",
+      "priority": 78,
+      "enabled": true
+    },
+    {
+      "id": "russian_rt",
+      "name": "RT Russian",
+      "url": "https://russian.rt.com/rss",
+      "language": "ru",
+      "region": "RU",
+      "priority": 78,
+      "enabled": true
+    },
+    {
+      "id": "sputnik_ru",
+      "name": "Sputnik Россия",
+      "url": "https://sputniknews.ru/export/rss2/archive/index.xml",
+      "language": "ru",
+      "region": "RU",
+      "priority": 72,
+      "enabled": true
+    },
+    {
+      "id": "vz",
+      "name": "Взгляд",
+      "url": "https://vz.ru/rss.xml",
+      "language": "ru",
+      "region": "RU",
+      "priority": 70,
+      "enabled": true
+    },
+    {
+      "id": "utro",
+      "name": "Утро.ру",
+      "url": "https://utro.ru/rss/",
+      "language": "ru",
+      "region": "RU",
+      "priority": 65,
+      "enabled": true
+    },
+    {
+      "id": "infox",
+      "name": "Infox.ru",
+      "url": "https://www.infox.ru/rss",
+      "language": "ru",
+      "region": "RU",
+      "priority": 65,
+      "enabled": true
+    },
+    {
+      "id": "hi_news",
+      "name": "Hi-Tech Mail",
+      "url": "https://hi-tech.mail.ru/rss/",
+      "language": "ru",
+      "region": "RU",
+      "priority": 60,
+      "enabled": true
+    },
+    {
+      "id": "bbc_top",
+      "name": "BBC NEWS",
+      "url": "https://feeds.bbci.co.uk/news/rss.xml",
+      "language": "en",
+      "region": "WORLD",
+      "priority": 58,
+      "enabled": true
+    },
+    {
+      "id": "bbc_tech",
+      "name": "BBC TECHNOLOGY",
+      "url": "https://feeds.bbci.co.uk/news/technology/rss.xml",
+      "language": "en",
+      "region": "WORLD",
+      "priority": 45,
+      "enabled": true
+    },
+    {
+      "id": "reuters",
+      "name": "Reuters via Google News",
+      "url": "https://news.google.com/rss/search?q=site%3Areuters.com&hl=en-US&gl=US&ceid=US%3Aen",
+      "language": "en",
+      "region": "WORLD",
+      "priority": 95,
+      "enabled": true
+    },
+    {
+      "id": "cnn_top",
+      "name": "CNN",
+      "url": "http://rss.cnn.com/rss/edition.rss",
+      "language": "en",
+      "region": "WORLD",
+      "priority": 55,
+      "enabled": true
+    },
+    {
+      "id": "cnn_world",
+      "name": "CNN WORLD",
+      "url": "http://rss.cnn.com/rss/edition_world.rss",
+      "language": "en",
+      "region": "WORLD",
+      "priority": 58,
+      "enabled": true
+    },
+    {
+      "id": "dw_world",
+      "name": "DEUTSCHE WELLE WORLD",
+      "url": "https://rss.dw.com/rdf/rss-en-world",
+      "language": "en",
+      "region": "EUROPE",
+      "priority": 58,
+      "enabled": true
+    },
+    {
+      "id": "guardian_uk",
+      "name": "THE GUARDIAN UK",
+      "url": "https://www.theguardian.com/uk/rss",
+      "language": "en",
+      "region": "EUROPE",
+      "priority": 45,
+      "enabled": true
+    },
+    {
+      "id": "nyt_world",
+      "name": "NEW YORK TIMES WORLD",
+      "url": "https://rss.nytimes.com/services/xml/rss/nyt/World.xml",
+      "language": "en",
+      "region": "WORLD",
+      "priority": 55,
+      "enabled": true
+    },
+    {
+      "id": "nyt_home",
+      "name": "NEW YORK TIMES",
+      "url": "https://rss.nytimes.com/services/xml/rss/nyt/HomePage.xml",
+      "language": "en",
+      "region": "WORLD",
+      "priority": 50,
+      "enabled": true
+    },
+    {
+      "id": "euronews",
+      "name": "EURONEWS",
+      "url": "https://www.euronews.com/rss?format=mrss&level=theme&name=news",
+      "language": "en",
+      "region": "EUROPE",
+      "priority": 55,
+      "enabled": true
+    },
+    {
+      "id": "zeit",
+      "name": "DIE ZEIT",
+      "url": "https://www.zeit.de/index",
+      "language": "de",
+      "region": "EUROPE",
+      "priority": 42,
+      "enabled": true
+    },
+    {
+      "id": "faz",
+      "name": "FRANKFURTER ALLGEMEINE",
+      "url": "https://www.faz.net/rss/aktuell/",
+      "language": "de",
+      "region": "EUROPE",
+      "priority": 42,
+      "enabled": true
+    },
+    {
+      "id": "elpais",
+      "name": "EL PAIS",
+      "url": "https://feeds.elpais.com/mrss-s/pages/ep/site/elpais.com/portada",
+      "language": "es",
+      "region": "EUROPE",
+      "priority": 42,
+      "enabled": true
+    },
+    {
+      "id": "cbc_top",
+      "name": "CBC NEWS",
+      "url": "https://www.cbc.ca/webfeed/rss/rss-topstories",
+      "language": "en",
+      "region": "WORLD",
+      "priority": 45,
+      "enabled": true
+    },
+    {
+      "id": "cbc_world",
+      "name": "CBC WORLD",
+      "url": "https://www.cbc.ca/webfeed/rss/rss-world",
+      "language": "en",
+      "region": "WORLD",
+      "priority": 45,
+      "enabled": true
+    },
+    {
+      "id": "nbc",
+      "name": "NBC NEWS",
+      "url": "https://feeds.nbcnews.com/nbcnews/public/news",
+      "language": "en",
+      "region": "WORLD",
+      "priority": 45,
+      "enabled": true
+    },
+    {
+      "id": "cbs",
+      "name": "CBS NEWS",
+      "url": "https://www.cbsnews.com/latest/rss/main",
+      "language": "en",
+      "region": "WORLD",
+      "priority": 45,
+      "enabled": true
+    },
+    {
+      "id": "cbs_world",
+      "name": "CBS WORLD",
+      "url": "https://www.cbsnews.com/latest/rss/world",
+      "language": "en",
+      "region": "WORLD",
+      "priority": 45,
+      "enabled": true
+    },
+    {
+      "id": "sky_world",
+      "name": "SKY NEWS WORLD",
+      "url": "https://feeds.skynews.com/feeds/rss/world.xml",
+      "language": "en",
+      "region": "WORLD",
+      "priority": 48,
+      "enabled": true
+    },
+    {
+      "id": "sky_home",
+      "name": "SKY NEWS",
+      "url": "https://feeds.skynews.com/feeds/rss/home.xml",
+      "language": "en",
+      "region": "WORLD",
+      "priority": 45,
+      "enabled": true
+    },
+    {
+      "id": "independent",
+      "name": "THE INDEPENDENT",
+      "url": "https://www.independent.co.uk/rss",
+      "language": "en",
+      "region": "EUROPE",
+      "priority": 42,
+      "enabled": true
+    },
+    {
+      "id": "time",
+      "name": "TIME",
+      "url": "https://time.com/feed/",
+      "language": "en",
+      "region": "WORLD",
+      "priority": 40,
+      "enabled": true
+    },
+    {
+      "id": "economist",
+      "name": "THE ECONOMIST",
+      "url": "https://www.economist.com/the-world-this-week/rss.xml",
+      "language": "en",
+      "region": "WORLD",
+      "priority": 40,
+      "enabled": true
+    },
+    {
+      "id": "politico_eu",
+      "name": "POLITICO EUROPE",
+      "url": "https://www.politico.eu/feed/",
+      "language": "en",
+      "region": "EUROPE",
+      "priority": 45,
+      "enabled": true
+    },
+    {
+      "id": "euobserver",
+      "name": "EUOBSERVER",
+      "url": "https://euobserver.com/rss",
+      "language": "en",
+      "region": "EUROPE",
+      "priority": 42,
+      "enabled": true
+    },
+    {
+      "id": "who",
+      "name": "WHO NEWS",
+      "url": "https://www.who.int/feeds/entity/mediacentre/news/en/rss.xml",
+      "language": "en",
+      "region": "WORLD",
+      "priority": 45,
+      "enabled": true
+    },
+    {
+      "id": "techcrunch",
+      "name": "TECHCRUNCH",
+      "url": "https://techcrunch.com/feed/",
+      "language": "en",
+      "region": "WORLD",
+      "priority": 38,
+      "enabled": true
+    },
+    {
+      "id": "wired",
+      "name": "WIRED",
+      "url": "https://www.wired.com/feed/rss",
+      "language": "en",
+      "region": "WORLD",
+      "priority": 38,
+      "enabled": true
+    },
+    {
+      "id": "arstechnica",
+      "name": "ARS TECHNICA",
+      "url": "https://feeds.arstechnica.com/arstechnica/index",
+      "language": "en",
+      "region": "WORLD",
+      "priority": 38,
+      "enabled": true
+    },
+    {
+      "id": "marketwatch",
+      "name": "MARKETWATCH",
+      "url": "https://feeds.marketwatch.com/marketwatch/topstories/",
+      "language": "en",
+      "region": "WORLD",
+      "priority": 45,
+      "enabled": true
+    },
+    {
+      "id": "fortune",
+      "name": "FORTUNE",
+      "url": "https://fortune.com/feed/",
+      "language": "en",
+      "region": "WORLD",
+      "priority": 38,
+      "enabled": true
+    },
+    {
+      "id": "entrepreneur",
+      "name": "ENTREPRENEUR",
+      "url": "https://www.entrepreneur.com/latest.rss",
+      "language": "en",
+      "region": "WORLD",
+      "priority": 35,
+      "enabled": true
+    },
+    {
+      "id": "engadget",
+      "name": "ENGADGET",
+      "url": "https://www.engadget.com/rss.xml",
+      "language": "en",
+      "region": "WORLD",
+      "priority": 35,
+      "enabled": true
+    },
+    {
+      "id": "rt",
+      "name": "RT",
+      "url": "https://www.rt.com/rss/",
+      "language": "en",
+      "region": "WORLD",
+      "priority": 48,
+      "enabled": true
+    },
+    {
+      "id": "abc_top",
+      "name": "ABC NEWS",
+      "url": "https://abcnews.go.com/abcnews/topstories",
+      "language": "en",
+      "region": "WORLD",
+      "priority": 45,
+      "enabled": true
+    },
+    {
+      "id": "abc_world",
+      "name": "ABC NEWS WORLD",
+      "url": "https://abcnews.go.com/abcnews/internationalheadlines",
+      "language": "en",
+      "region": "WORLD",
+      "priority": 45,
+      "enabled": true
+    },
+    {
+      "id": "abc_au",
+      "name": "ABC AUSTRALIA",
+      "url": "https://www.abc.net.au/news/feed/51120/rss.xml",
+      "language": "en",
+      "region": "ASIA",
+      "priority": 42,
+      "enabled": true
+    },
+    {
+      "id": "abc_nz",
+      "name": "ABC NZ",
+      "url": "https://www.rnz.co.nz/rss/world.xml",
+      "language": "en",
+      "region": "ASIA",
+      "priority": 38,
+      "enabled": true
+    },
+    {
+      "id": "age",
+      "name": "THE AGE",
+      "url": "https://www.theage.com.au/rss/feed.xml",
+      "language": "en",
+      "region": "ASIA",
+      "priority": 35,
+      "enabled": true
+    },
+    {
+      "id": "smh",
+      "name": "SYDNEY MORNING HERALD",
+      "url": "https://www.smh.com.au/rss/feed.xml",
+      "language": "en",
+      "region": "ASIA",
+      "priority": 35,
+      "enabled": true
+    },
+    {
+      "id": "channelnewsasia",
+      "name": "CHANNEL NEWSASIA",
+      "url": "https://www.channelnewsasia.com/api/v1/rss-outbound-feed?_format=xml",
+      "language": "en",
+      "region": "ASIA",
+      "priority": 50,
+      "enabled": true
+    },
+    {
+      "id": "straits_times",
+      "name": "THE STRAITS TIMES",
+      "url": "https://www.straitstimes.com/news/world/rss.xml",
+      "language": "en",
+      "region": "ASIA",
+      "priority": 38,
+      "enabled": true
+    },
+    {
+      "id": "the_hindu",
+      "name": "THE HINDU",
+      "url": "https://www.thehindu.com/feeder/default.rss",
+      "language": "en",
+      "region": "ASIA",
+      "priority": 42,
+      "enabled": true
+    },
+    {
+      "id": "ndtv",
+      "name": "NDTV",
+      "url": "https://feeds.feedburner.com/ndtvnews-top-stories",
+      "language": "en",
+      "region": "ASIA",
+      "priority": 40,
+      "enabled": true
+    },
+    {
+      "id": "korea_herald",
+      "name": "KOREA HERALD",
+      "url": "https://www.koreaherald.com/rss/",
+      "language": "en",
+      "region": "ASIA",
+      "priority": 38,
+      "enabled": true
+    },
+    {
+      "id": "rfi",
+      "name": "RFI",
+      "url": "https://www.rfi.fr/en/rss",
+      "language": "en",
+      "region": "EUROPE",
+      "priority": 45,
+      "enabled": true
+    },
+    {
+      "id": "arte",
+      "name": "ARTE",
+      "url": "https://www.arte.tv/rss/en/",
+      "language": "en",
+      "region": "EUROPE",
+      "priority": 35,
+      "enabled": true
+    },
+    {
+      "id": "ansa",
+      "name": "ANSA ENGLISH",
+      "url": "https://www.ansa.it/english/news/1_rss.xml",
+      "language": "en",
+      "region": "EUROPE",
+      "priority": 48,
+      "enabled": true
+    },
+    {
+      "id": "voa",
+      "name": "VOICE OF AMERICA",
+      "url": "https://www.voanews.com/api/zqorqye-vomx-tpe",
+      "language": "en",
+      "region": "WORLD",
+      "priority": 45,
+      "enabled": true
+    },
+    {
+      "id": "nhk_world",
+      "name": "NHK WORLD",
+      "url": "https://www3.nhk.or.jp/rssxml/news/globalnewsroom.xml",
+      "language": "en",
+      "region": "ASIA",
+      "priority": 48,
+      "enabled": true
+    },
+    {
+      "id": "publico",
+      "name": "PUBLICO",
+      "url": "https://feeds.feedburner.com/Publico",
+      "language": "pt",
+      "region": "EUROPE",
+      "priority": 35,
+      "enabled": true
+    },
+    {
+      "id": "rtve",
+      "name": "RTVE",
+      "url": "https://www.rtve.es/api/rss/noticias/",
+      "language": "es",
+      "region": "EUROPE",
+      "priority": 38,
+      "enabled": true
+    },
+    {
+      "id": "pbs",
+      "name": "PBS NEWSHOUR",
+      "url": "https://www.pbs.org/newshour/feeds/rss/headlines",
+      "language": "en",
+      "region": "WORLD",
+      "priority": 42,
+      "enabled": true
+    },
+    {
+      "id": "spaceflight",
+      "name": "SPACEFLIGHT NOW",
+      "url": "https://spaceflightnow.com/feed/",
+      "language": "en",
+      "region": "WORLD",
+      "priority": 30,
+      "enabled": true
+    },
+    {
+      "id": "spacedotcom",
+      "name": "SPACE.COM",
+      "url": "https://www.space.com/feeds/all",
+      "language": "en",
+      "region": "WORLD",
+      "priority": 30,
+      "enabled": true
+    },
+    {
+      "id": "ap_aggregator",
+      "name": "AP NEWS via Google News",
+      "url": "https://news.google.com/rss/search?q=site%3Aapnews.com&hl=en-US&gl=US&ceid=US%3Aen",
+      "language": "en",
+      "region": "WORLD",
+      "priority": 95,
+      "enabled": true
+    },
+    {
+      "id": "afp_aggregator",
+      "name": "AFP via Google News",
+      "url": "https://news.google.com/rss/search?q=site%3Aafp.com&hl=en-US&gl=US&ceid=US%3Aen",
+      "language": "en",
+      "region": "WORLD",
+      "priority": 95,
+      "enabled": true
+    },
+    {
+      "id": "reuters_business",
+      "name": "Reuters Business via Google News",
+      "url": "https://news.google.com/rss/search?q=site%3Areuters.com%2Fbusiness&hl=en-US&gl=US&ceid=US%3Aen",
+      "language": "en",
+      "region": "WORLD",
+      "priority": 90,
+      "enabled": true
+    },
+    {
+      "id": "google_world",
+      "name": "GOOGLE NEWS WORLD",
+      "url": "https://news.google.com/rss?hl=en-US&gl=US&ceid=US:en",
+      "language": "en",
+      "region": "WORLD",
+      "priority": 35,
+      "enabled": true
+    },
+    {
+      "id": "google_russia",
+      "name": "GOOGLE NEWS RUSSIA",
+      "url": "https://news.google.com/rss/search?q=Russia&hl=ru&gl=RU&ceid=RU:ru",
+      "language": "ru",
+      "region": "RU",
+      "priority": 55,
+      "enabled": true
+    },
+    {
+      "id": "google_business",
+      "name": "GOOGLE NEWS BUSINESS",
+      "url": "https://news.google.com/rss/headlines/section/topic/BUSINESS?hl=en-US&gl=US&ceid=US:en",
+      "language": "en",
+      "region": "WORLD",
+      "priority": 35,
+      "enabled": true
+    },
+    {
+      "id": "google_tech",
+      "name": "GOOGLE NEWS TECHNOLOGY",
+      "url": "https://news.google.com/rss/headlines/section/topic/TECHNOLOGY?hl=en-US&gl=US&ceid=US:en",
+      "language": "en",
+      "region": "WORLD",
+      "priority": 35,
+      "enabled": true
+    },
+    {
+      "id": "bing_reuters",
+      "name": "BING NEWS Reuters",
+      "url": "https://www.bing.com/news/search?q=site%3Areuters.com&format=rss",
+      "language": "en",
+      "region": "WORLD",
+      "priority": 80,
+      "enabled": true
+    },
+    {
+      "id": "bing_ap",
+      "name": "BING NEWS AP",
+      "url": "https://www.bing.com/news/search?q=site%3Aapnews.com&format=rss",
+      "language": "en",
+      "region": "WORLD",
+      "priority": 80,
+      "enabled": true
+    },
+    {
+      "id": "bing_afp",
+      "name": "BING NEWS AFP",
+      "url": "https://www.bing.com/news/search?q=site%3Aafp.com&format=rss",
+      "language": "en",
+      "region": "WORLD",
+      "priority": 80,
+      "enabled": true
+    },
+    {
+      "id": "afp_press",
+      "name": "AFP PRESS RELEASES",
+      "url": "https://www.afp.com/en/agency/inside-afp/press-releases/rss",
+      "language": "en",
+      "region": "WORLD",
+      "priority": 25,
+      "enabled": true
+    },
+    {
+      "id": "anadolu_en",
+      "name": "ANADOLU AGENCY",
+      "url": "https://www.aa.com.tr/en/rss/news?cat=0",
+      "language": "en",
+      "region": "WORLD",
+      "priority": 80,
+      "enabled": true
+    },
+    {
+      "id": "anadolu_tr",
+      "name": "ANADOLU TÜRKÇE",
+      "url": "https://www.aa.com.tr/tr/teyithatti/rss/news?cat=0",
+      "language": "tr",
+      "region": "EUROPE",
+      "priority": 55,
+      "enabled": true
+    },
+    {
+      "id": "china_world",
+      "name": "XINHUA WORLD",
+      "url": "http://www.xinhuanet.com/world/news_world.xml",
+      "language": "zh",
+      "region": "ASIA",
+      "priority": 65,
+      "enabled": true
+    },
+    {
+      "id": "china_politics",
+      "name": "XINHUA POLITICS",
+      "url": "http://www.xinhuanet.com/politics/news_politics.xml",
+      "language": "zh",
+      "region": "ASIA",
+      "priority": 65,
+      "enabled": true
+    },
+    {
+      "id": "chinanews_world",
+      "name": "CHINA NEWS WORLD",
+      "url": "https://www.chinanews.com.cn/rss/world.xml",
+      "language": "zh",
+      "region": "ASIA",
+      "priority": 60,
+      "enabled": true
+    },
+    {
+      "id": "chinanews_finance",
+      "name": "CHINA NEWS FINANCE",
+      "url": "https://www.chinanews.com.cn/rss/finance.xml",
+      "language": "zh",
+      "region": "ASIA",
+      "priority": 55,
+      "enabled": true
+    },
+    {
+      "id": "yonhap",
+      "name": "YONHAP",
+      "url": "https://en.yna.co.kr/RSS/news.xml",
+      "language": "en",
+      "region": "ASIA",
+      "priority": 55,
+      "enabled": true
+    },
+    {
+      "id": "nhk_news",
+      "name": "NHK NEWS JAPAN",
+      "url": "https://www3.nhk.or.jp/rss/news/cat0.rss",
+      "language": "ja",
+      "region": "ASIA",
+      "priority": 45,
+      "enabled": true
+    }
+  ]
+}

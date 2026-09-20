@@ -1,0 +1,7 @@
+{
+  "bot_token": "ВАШ_ТОКЕН_ОТ_BOTFATHER",
+  "allowed_chat_ids": [123456789],
+  "enabled": true,
+  "daily_digest": false,
+  "daily_digest_hour": 9
+}

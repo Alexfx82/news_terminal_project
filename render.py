@@ -1,0 +1,393 @@
+#!/usr/bin/env python3
+# -*- coding: utf-8 -*-
+"""render.py — сборка кадра и формат строк."""
+
+import time
+from datetime import datetime, timedelta
+
+from config import (
+    Color, HISTORY_HOURS, now_utc, USE_SOURCE_COLORS, LANG_TAGS,
+    HOT_TOPIC_MAX, HOT_NEW_FLASH_SECONDS, HOT_FADE_AFTER_SECONDS,
+)
+from textutils import box_line, top_border, mid_border, bottom_border, \
+    fit_text, pad_visible, visible_width
+from news import dedup_by_topic, build_hot_topics, has_cjk
+from source_colors import get_source_color
+
+
+# ============================================================
+#  Мигание: BREAKING и ALERT в противофазе
+# ============================================================
+
+FLASH_PERIOD = 2.0
+
+
+def _flash_phase():
+    return int(time.time() / FLASH_PERIOD) % 2 == 0
+
+
+def _is_breaking_flash_on():
+    return _flash_phase()
+
+
+def _is_alert_flash_on():
+    return not _flash_phase()
+
+
+# ============================================================
+#  Title picker + фильтр непереведённых
+# ============================================================
+
+def pick_title(item, show_translation):
+    lang = item.get("language", "") or "ru"
+
+    if lang == "ru":
+        return item["title"]
+
+    if item.get("title_ru"):
+        return item["title_ru"]
+
+    # нет перевода
+    if lang == "zh":
+        # китайский никогда не показываем
+        return None
+    if show_translation:
+        return None   # любая не-RU новость без перевода — не показываем
+    return item["title"]
+
+
+def is_renderable(item, show_translation):
+    """
+    True, если новость можно показывать.
+    Китайские и другие не-RU источники показываются только с переводом.
+    """
+    lang = item.get("language", "") or "ru"
+    if lang == "ru":
+        return True
+    if item.get("title_ru"):
+        return True
+    # если есть китайские иероглифы в оригинале — не рендерим
+    if has_cjk(item.get("title", "")):
+        return False
+    # если show_translation=False и это не ru — показываем оригинал
+    if not show_translation:
+        return True
+    return False
+
+
+# ============================================================
+#  Helpers
+# ============================================================
+
+def _source_color_for(item):
+    if USE_SOURCE_COLORS:
+        return get_source_color(item["source_id"], item["region"])
+    return Color.RU_SOURCE if item["region"] == "RU" else Color.WORLD_SOURCE
+
+
+def _source_tag_text(item):
+    source = fit_text(item["source"].upper(), 12)
+    lang = item.get("language", "") or "ru"
+    lang_tag = LANG_TAGS.get(lang, "")
+    if lang_tag and lang != "ru":
+        return fit_text("[{}·{}]".format(lang_tag, source), 14)
+    return fit_text("[{}]".format(source), 14)
+
+
+def _colored_source_tag(item):
+    tag = _source_tag_text(item)
+    color = _source_color_for(item)
+    return color + pad_visible(tag, 14) + Color.RESET
+
+
+# ============================================================
+#  Первое поле строки
+# ============================================================
+
+FIRST_FIELD_W = 12
+
+
+def _first_field(item):
+    ts = item["time"].astimezone().strftime("%H:%M")
+    ts_padded = pad_visible(ts, FIRST_FIELD_W)
+
+    level = item.get("level", "NORMAL")
+    if level == "NORMAL":
+        return ts_padded
+
+    if level == "BREAKING":
+        if _is_breaking_flash_on():
+            label = "⚡ BREAKING"
+            colored = Color.BREAKING + label + Color.RESET
+            pad = FIRST_FIELD_W - visible_width(label)
+            return colored + " " * max(0, pad)
+        return ts_padded
+
+    if level == "ALERT":
+        if _is_alert_flash_on():
+            label = "⚠ ALERT"
+            colored = Color.ALERT + label + Color.RESET
+            pad = FIRST_FIELD_W - visible_width(label)
+            return colored + " " * max(0, pad)
+        return ts_padded
+
+    return ts_padded
+
+
+# ============================================================
+#  Row assembly
+# ============================================================
+
+def _assemble_row(item, width, show_translation):
+    inner = width - 2
+    first = _first_field(item)
+    source = _colored_source_tag(item)
+    title = pick_title(item, show_translation)
+
+    if title is None:
+        # не должно происходить — вызывающий код фильтрует через is_renderable
+        title = "… (перевод готовится)"
+
+    title_space = inner - FIRST_FIELD_W - 1 - 14 - 1
+    if title_space < 5:
+        title_space = 5
+    title_fit = fit_text(title, title_space)
+
+    line = (
+        "║"
+        + first
+        + " "
+        + source
+        + " "
+        + pad_visible(title_fit, title_space)
+        + "║"
+    )
+
+    if visible_width(line) != width:
+        ts = item["time"].astimezone().strftime("%H:%M")
+        base = pad_visible(ts, FIRST_FIELD_W) + " " + _source_tag_text(item) + " " + title
+        return box_line(base, width)
+
+    return line
+
+
+def format_breaking_line(item, width, show_translation=False):
+    return _assemble_row(item, width, show_translation)
+
+
+def format_news_line(item, width, show_translation=False):
+    return _assemble_row(item, width, show_translation)
+
+
+# ============================================================
+#  BREAKING NEWS BOARD
+# ============================================================
+
+HOT_BOARD_ROWS = HOT_TOPIC_MAX
+
+
+def _hot_flash_on(topic):
+    age = max(0.0, time.time() - topic["last_update"].timestamp())
+    return age <= HOT_NEW_FLASH_SECONDS and _flash_phase()
+
+
+def _hot_source_text(topic):
+    """Выбирает самый приоритетный источник из items."""
+    items = topic.get("items") or []
+    if not items:
+        return "NEWS"
+    best = max(items, key=lambda x: (x.get("priority", 50),
+                                     x.get("time", 0)))
+    others = len({x.get("source_id") for x in items if x.get("source_id")}) - 1
+    if others <= 0:
+        return best["source"].upper()
+    return "{} +{}".format(best["source"].upper(), others)
+
+
+def _format_hot_line(topic, width, show_translation=False):
+    inner = width - 2
+    item = topic["item"]
+    title = pick_title(item, show_translation)
+
+    if title is None:
+        title = "… (перевод готовится)"
+
+    level = topic.get("level", "ALERT")
+    source = fit_text(_hot_source_text(topic), 16)
+    updates = topic.get("updates", 1)
+
+    if _hot_flash_on(topic):
+        marker = "⚡ BREAKING"
+        marker_color = Color.BREAKING
+    elif level == "BREAKING":
+        marker = "⚡ BREAKING"
+        marker_color = Color.BREAKING
+    else:
+        marker = "⚠ ALERT"
+        marker_color = Color.ALERT
+
+    age = max(0.0, time.time() - topic["last_update"].timestamp())
+    if age >= HOT_FADE_AFTER_SECONDS:
+        marker_color = Color.GRAY
+
+    left_w = 12
+    source_w = 16
+    title_w = inner - left_w - 1 - source_w - 1
+    title_fit = fit_text(title, max(5, title_w))
+
+    first = marker_color + fit_text(marker, left_w) + Color.RESET
+    src = Color.BRIGHT_YELLOW + pad_visible(source, source_w) + Color.RESET
+    title_color = Color.BRIGHT_WHITE if level == "BREAKING" else Color.WHITE
+    title_part = title_color + pad_visible(title_fit, title_w) + Color.RESET
+
+    line = "║" + first + " " + src + " " + title_part + "║"
+    if visible_width(line) != width:
+        return box_line(
+            "{} [{}] {}  upd:{}".format(marker, source, title, updates),
+            width)
+    return line
+
+
+def render_hot_board(topics, width, max_rows, show_translation=False):
+    lines = [mid_border(width)]
+    title = "⚡ BREAKING NEWS  |  LIVE HOT TOPICS  |  {} SLOTS".format(max_rows)
+    lines.append(box_line(title, width))
+    lines.append(mid_border(width))
+
+    for topic in topics[:max_rows]:
+        lines.append(_format_hot_line(topic, width, show_translation))
+
+    for _ in range(len(topics), max_rows):
+        lines.append(box_line("", width))
+
+    lines.append(mid_border(width))
+    return lines
+
+
+# ============================================================
+#  Ticker
+# ============================================================
+
+def render_ticker(unique_items, width, offset, show_translation=False):
+    def _title_safe(x):
+        t = pick_title(x, show_translation)
+        return t if t else ""
+
+    breaking = [x for x in unique_items if x["level"] == "BREAKING"]
+    if not breaking:
+        alert_items = [x for x in unique_items if x["level"] == "ALERT"]
+        if not alert_items:
+            return box_line("", width)
+        parts = [p for p in (_title_safe(x) for x in alert_items[:6]) if p]
+        if not parts:
+            return box_line("", width)
+        text = "     ⚠     ".join(parts)
+    else:
+        parts = [p for p in (_title_safe(x) for x in breaking[:6]) if p]
+        if not parts:
+            return box_line("", width)
+        text = "     ⚡     ".join(parts)
+
+    text = text + "     " + text
+    inner = width - 2
+    segment = text[offset % max(1, len(text)):][:inner]
+    return box_line(segment, width)
+
+
+def trim_history(history):
+    cutoff = now_utc() - timedelta(hours=HISTORY_HOURS)
+    while history and history[-1]["time"] < cutoff:
+        history.pop()
+    return history
+
+
+# ============================================================
+#  Frame builder
+# ============================================================
+
+def build_frame_lines(history, width, height, source_health,
+                      last_update, ticker_offset, fetch_countdown,
+                      fetching, show_translation=False):
+    lines = []
+    lines.append(top_border(width))
+
+    now = datetime.now().strftime("%d %b %Y  %H:%M:%S")
+    live_dot = "● LIVE" if int(time.time()) % 2 == 0 else "○ LIVE"
+    lang_tag = "RU" if show_translation else "EN"
+    lines.append(box_line(
+        "NEWS TERMINAL   {}   {}   LANG:{}".format(now, live_dot, lang_tag),
+        width))
+
+    # ===== Основная дедупликация =====
+    unique_all = dedup_by_topic(list(history))
+
+    # ===== Отфильтровываем то, что нельзя показать =====
+    unique_items = [x for x in unique_all if is_renderable(x, show_translation)]
+
+    # ===== Горячие темы =====
+    hot_topics_all = build_hot_topics(history, now_utc())
+    hot_topics = [t for t in hot_topics_all
+                  if is_renderable(t["item"], show_translation)]
+
+    total = len(unique_items)
+    breaking = sum(1 for x in unique_items if x["level"] == "BREAKING")
+    alert = sum(1 for x in unique_items if x["level"] == "ALERT")
+    ru = sum(1 for x in unique_items if x["region"] == "RU")
+    world = total - ru
+    healthy = sum(1 for x in source_health.values()
+                  if x.get("status") == "healthy")
+
+    # ===== Адаптивное число слотов под экран =====
+    hot_rows = min(HOT_TOPIC_MAX, max(2, height // 6))
+
+    stats = "SRC {}/{}  TOTAL {}  ⚡ {}  ⚠ {}  HOT {}/{}  RU {}  WORLD {}".format(
+        healthy, len(source_health), total, breaking, alert,
+        len(hot_topics), hot_rows, ru, world)
+    lines.append(box_line(stats, width))
+
+    # ===== Окно горячих тем =====
+    lines.extend(render_hot_board(
+        hot_topics, width, hot_rows, show_translation=show_translation))
+
+    used_top = len(lines)
+    reserved_bottom = 6
+    news_slots = max(0, height - used_top - reserved_bottom)
+
+    hot_item_keys = {x["item"].get("key") for x in hot_topics}
+    stream = [x for x in unique_items if x.get("key") not in hot_item_keys]
+    stream.sort(key=lambda x: x["time"], reverse=True)
+
+    for item in stream[:news_slots]:
+        lines.append(format_news_line(item, width, show_translation))
+
+    used = min(news_slots, len(stream))
+    while used < news_slots:
+        lines.append(box_line("", width))
+        used += 1
+
+    lines.append(mid_border(width))
+    lines.append(render_ticker(unique_items, width, ticker_offset,
+                                show_translation=show_translation))
+
+    lines.append(mid_border(width))
+    if fetching:
+        footer = ("FETCHING...   LAST {}   [S]ETTINGS  [T]STATS  "
+                  "[D]IAG  [R]EFRESH  [Q]UIT").format(last_update)
+    else:
+        bar_w = 20
+        total_sec = max(1, fetch_countdown + 20)
+        filled = max(0, min(bar_w,
+                            int(bar_w * (total_sec - fetch_countdown) / total_sec)))
+        pulse = "█" * filled + "░" * (bar_w - filled)
+        footer = ("LAST {}   NEXT [{}]   [S]ETTINGS  [T]STATS  "
+                  "[D]IAG  [R]EFRESH  [Q]UIT").format(last_update, pulse)
+
+    lines.append(box_line(footer, width))
+    lines.append(bottom_border(width))
+
+    while len(lines) < height:
+        lines.append(box_line("", width))
+    if len(lines) > height:
+        lines = lines[:height]
+
+    return lines

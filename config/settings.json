@@ -1,0 +1,15 @@
+{
+  "version": 1,
+  "display": {
+    "width": 80,
+    "auto_detect_terminal_size": true,
+    "title": "NEWS TERMINAL",
+    "language": "ru"
+  },
+  "wifi": {
+    "interface": "wlan0"
+  },
+  "app": {
+    "refresh_seconds": 20
+  }
+}

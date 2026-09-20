@@ -1,0 +1,43 @@
+# ========== СЕКРЕТЫ ==========
+config/telegram.json
+config/secrets.json
+*.token
+*.key
+
+# ========== ДАННЫЕ ==========
+data/
+news_history/
+stats/
+diagnostics/
+*.log
+nohup.out
+cron.log
+
+# ========== PYTHON ==========
+__pycache__/
+*.py[cod]
+*$py.class
+*.so
+.Python
+build/
+dist/
+*.egg-info/
+.eggs/
+
+# ========== VENV ==========
+.venv/
+venv/
+env/
+ENV/
+
+# ========== IDE ==========
+.vscode/
+.idea/
+*.swp
+*.swo
+*~
+
+# ========== OS ==========
+.DS_Store
+Thumbs.db
+desktop.ini
