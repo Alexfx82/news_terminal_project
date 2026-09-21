@@ -1,7 +1,3 @@
-#!/usr/bin/env python3
-# -*- coding: utf-8 -*-
-"""main.py — entry point."""
-
 import argparse
 import json
 import sys
@@ -15,6 +11,25 @@ from sources import scan_sources, fetch_one_source
 from live import run_live
 
 
+def _check_updates_on_startup():
+    """Проверяет обновления при старте, выводит уведомление."""
+    try:
+        from update import check_for_updates
+        info = check_for_updates()
+        if info.get("ok") and info.get("available"):
+            print()
+            print("╔══════════════════════════════════════════════════════════╗")
+            print("║  ДОСТУПНО ОБНОВЛЕНИЕ                                     ║")
+            print("╚══════════════════════════════════════════════════════════╝")
+            print("  Локально: {} {}".format(info["local_sha"], info["local_msg"][:50]))
+            print("  На GitHub: {} {}".format(info["remote_sha"], info["remote_msg"][:50]))
+            print()
+            print("  Обновить можно через меню [S] → пункт 9")
+            print()
+    except Exception:
+        pass
+
+
 def run():
     enable_windows_ansi()
 
@@ -23,7 +38,28 @@ def run():
     parser.add_argument("--source", default="")
     parser.add_argument("--once", action="store_true")
     parser.add_argument("--no-fresh-scan", action="store_true")
+    parser.add_argument("--check-updates", action="store_true",
+                        help="Проверить обновления и выйти")
     args = parser.parse_args()
+
+    # === Проверка обновлений, если запрошено ===
+    if args.check_updates:
+        from update import check_for_updates
+        info = check_for_updates()
+        if info["ok"]:
+            if info["available"]:
+                print("Обновление доступно:")
+                print("  Локально:  {} {}".format(info["local_sha"], info["local_msg"]))
+                print("  На GitHub: {} {}".format(info["remote_sha"], info["remote_msg"]))
+            else:
+                print("Обновлений нет. Текущая версия:", info["local_sha"])
+        else:
+            print("Ошибка:", info["error"])
+        return 0
+
+    # === Проверка при обычном старте ===
+    if not args.no_fresh_scan:
+        _check_updates_on_startup()
 
     settings = load_settings()
     width, height = get_terminal_size(settings)
