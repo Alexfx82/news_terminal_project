@@ -2,20 +2,22 @@
 # -*- coding: utf-8 -*-
 """
 tg_bot.py — Telegram-бот для NEWS TERMINAL.
-Читает данные из news_history/ и data/.
-Не зависит от внутренностей live.py, render.py и т.д.
+
+Роли:
+- OWNER (владелец, config.owner_id) — все команды + admin
+- USER (в allowed_chat_ids) — только чтение
+- ОСТАЛЬНЫЕ — отказ
 """
 
 import json
 import sys
 import time
 import urllib.request
-import urllib.parse
 from datetime import datetime, timezone, timedelta
 from pathlib import Path
 
 # ============================================================
-#  Пути (используем только то, что стабильно)
+#  Пути
 # ============================================================
 
 BASE_DIR = Path(__file__).resolve().parent
@@ -24,18 +26,50 @@ DATA_DIR = BASE_DIR / "data"
 HISTORY_DIR = BASE_DIR / "news_history"
 TELEGRAM_CONFIG = CONFIG_DIR / "telegram.json"
 HEALTH_FILE = DATA_DIR / "source_health.json"
+BOT_LOG = DATA_DIR / "tg_bot.log"
+
+
+# ============================================================
+#  Логирование
+# ============================================================
+
+def _log(msg):
+    try:
+        DATA_DIR.mkdir(parents=True, exist_ok=True)
+        with open(BOT_LOG, "a", encoding="utf-8") as f:
+            f.write("{} | {}\n".format(
+                datetime.now(timezone.utc).isoformat(), msg))
+    except Exception:
+        pass
 
 
 # ============================================================
 #  Конфиг
 # ============================================================
 
+def _normalize_ids(value):
+    if value is None:
+        return []
+    if isinstance(value, int):
+        return [value]
+    if isinstance(value, str):
+        out = []
+        for x in value.split(","):
+            x = x.strip()
+            if x.lstrip("-").isdigit():
+                out.append(int(x))
+        return out
+    if isinstance(value, list):
+        return [int(x) for x in value if str(x).lstrip("-").isdigit()]
+    return []
+
+
 def load_telegram_config():
-    """Читает config/telegram.json. Если нет — создаёт шаблон."""
     if not TELEGRAM_CONFIG.exists():
         TELEGRAM_CONFIG.parent.mkdir(parents=True, exist_ok=True)
         template = {
             "bot_token": "",
+            "owner_id": 0,
             "allowed_chat_ids": [],
             "enabled": True,
             "daily_digest": False,
@@ -44,7 +78,6 @@ def load_telegram_config():
         with open(TELEGRAM_CONFIG, "w", encoding="utf-8") as f:
             json.dump(template, f, ensure_ascii=False, indent=2)
         print("Создан шаблон:", TELEGRAM_CONFIG)
-        print("Впишите bot_token и allowed_chat_ids, затем перезапустите.")
         sys.exit(1)
 
     try:
@@ -55,10 +88,28 @@ def load_telegram_config():
         sys.exit(1)
 
     if not data.get("bot_token"):
-        print("bot_token пуст. Заполните", TELEGRAM_CONFIG)
+        print("bot_token пуст:", TELEGRAM_CONFIG)
         sys.exit(1)
 
+    data["allowed_chat_ids"] = _normalize_ids(data.get("allowed_chat_ids"))
+
+    owner = data.get("owner_id")
+    if isinstance(owner, int) and owner != 0:
+        pass
+    elif data["allowed_chat_ids"]:
+        data["owner_id"] = data["allowed_chat_ids"][0]
+        save_telegram_config(data)
+    else:
+        data["owner_id"] = 0
+
     return data
+
+
+def save_telegram_config(data):
+    tmp = TELEGRAM_CONFIG.with_suffix(".tmp")
+    with open(tmp, "w", encoding="utf-8") as f:
+        json.dump(data, f, ensure_ascii=False, indent=2)
+    tmp.replace(TELEGRAM_CONFIG)
 
 
 # ============================================================
@@ -76,8 +127,7 @@ class TelegramAPI:
             data = json.dumps(params).encode("utf-8")
             req = urllib.request.Request(
                 url, data=data,
-                headers={"Content-Type": "application/json"}
-            )
+                headers={"Content-Type": "application/json"})
         else:
             req = urllib.request.Request(url)
         try:
@@ -93,7 +143,6 @@ class TelegramAPI:
 
     def send_message(self, chat_id, text, parse_mode="HTML",
                      disable_preview=True):
-        # Telegram лимит 4096 символов
         chunks = [text[i:i + 4000] for i in range(0, len(text), 4000)]
         for chunk in chunks:
             self._call("sendMessage", {
@@ -109,14 +158,11 @@ class TelegramAPI:
 # ============================================================
 
 def load_recent_items(hours=24):
-    """Читает все news_*.jsonl из news_history/, возвращает items за N часов."""
     if not HISTORY_DIR.exists():
         return []
-
     cutoff = datetime.now(timezone.utc) - timedelta(hours=hours)
     files = sorted(HISTORY_DIR.glob("news_*.jsonl"),
                    key=lambda p: p.stat().st_mtime, reverse=True)
-
     seen = set()
     items = []
     for path in files:
@@ -158,21 +204,50 @@ def load_health():
 
 
 # ============================================================
-#  Команды бота
+#  РЕЕСТР КОМАНД
 # ============================================================
 
-def cmd_start(api, chat_id):
-    text = (
-        "📰 <b>NEWS TERMINAL Bot</b>\n\n"
-        "Команды:\n"
-        "/latest — последние 10 новостей\n"
-        "/breaking — текущие BREAKING\n"
-        "/stats — статистика за 24 часа\n"
-        "/search &lt;слово&gt; — поиск по заголовкам\n"
-        "/sources — состояние источников\n"
-        "/help — эта справка"
-    )
-    api.send_message(chat_id, text)
+USER_COMMANDS = {
+    "/help":     "❓ Справка",
+    "/menu":     "📋 Показать меню",
+    "/latest":   "🆕 Последние 10 новостей",
+    "/breaking": "⚡ Активные BREAKING",
+    "/stats":    "📊 Статистика за 24 часа",
+    "/search":   "🔍 Поиск: /search <слово>",
+    "/sources":  "📡 Состояние источников",
+}
+
+ADMIN_COMMANDS = {
+    "/admin":       "👑 Меню администратора",
+    "/users":       "👥 Список пользователей",
+    "/adduser":     "➕ Добавить: /adduser <id>",
+    "/removeuser":  "➖ Удалить: /removeuser <id>",
+    "/stats_admin": "📊 Расширенная статистика",
+    "/log":         "📜 Последние логи",
+}
+
+
+# ============================================================
+#  Команды
+# ============================================================
+
+def cmd_start(api, chat_id, is_owner=False):
+    lines = ["📰 <b>NEWS TERMINAL Bot</b>", ""]
+    lines.append("<b>Доступные команды:</b>")
+    for cmd, desc in USER_COMMANDS.items():
+        lines.append("  {} — {}".format(cmd, desc))
+    if is_owner:
+        lines.append("")
+        lines.append("👑 <b>Вы владелец бота.</b>")
+        lines.append("Используйте /admin для управления.")
+    api.send_message(chat_id, "\n".join(lines))
+
+
+def cmd_menu(api, chat_id, is_owner=False):
+    if is_owner:
+        cmd_admin(api, chat_id)
+    else:
+        cmd_start(api, chat_id, is_owner=False)
 
 
 def cmd_latest(api, chat_id, hours=24, limit=10):
@@ -181,7 +256,6 @@ def cmd_latest(api, chat_id, hours=24, limit=10):
         api.send_message(chat_id, "Нет новостей за последние {} ч.".format(hours))
         return
     items.sort(key=lambda x: x["time"], reverse=True)
-
     lines = ["<b>📰 Последние новости</b>", ""]
     for it in items[:limit]:
         title = it.get("title_ru") or it.get("title", "")
@@ -197,7 +271,6 @@ def cmd_breaking(api, chat_id):
     if not breaking:
         api.send_message(chat_id, "Активных BREAKING нет.")
         return
-
     breaking.sort(key=lambda x: x["time"], reverse=True)
     lines = ["<b>⚡ BREAKING</b>", ""]
     for it in breaking[:10]:
@@ -213,27 +286,21 @@ def cmd_stats(api, chat_id):
     if not items:
         api.send_message(chat_id, "Нет данных за 24 часа.")
         return
-
     neg_words = ["смерт", "умер", "погиб", "убийств", "войн", "атак",
                  "взрыв", "теракт", "катастроф", "пожар", "крушени",
                  "ракет", "дрон", "бпла", "чп", "кризис", "угроз"]
     pos_words = ["любов", "семь", "счасть", "радост", "успех", "побед",
                  "достижен", "рекорд", "помощ", "поддержк", "спасен",
                  "открыт", "развит", "рост", "мир", "соглашен"]
-
-    neg = 0
-    pos = 0
-    for it in items:
-        t = (it.get("title_ru") or it.get("title", "")).lower()
-        if any(w in t for w in neg_words):
-            neg += 1
-        if any(w in t for w in pos_words):
-            pos += 1
-
+    neg = sum(1 for it in items if any(
+        w in (it.get("title_ru") or it.get("title", "")).lower()
+        for w in neg_words))
+    pos = sum(1 for it in items if any(
+        w in (it.get("title_ru") or it.get("title", "")).lower()
+        for w in pos_words))
     total = len(items)
     lines = [
-        "<b>📊 Статистика за 24 часа</b>",
-        "",
+        "<b>📊 Статистика за 24 часа</b>", "",
         "Всего: {}".format(total),
         "⚠ Негативных: {} ({:.1f}%)".format(neg, 100.0 * neg / max(1, total)),
         "☺ Позитивных: {} ({:.1f}%)".format(pos, 100.0 * pos / max(1, total)),
@@ -278,8 +345,7 @@ def cmd_sources(api, chat_id):
     healthy = [r for r in results if r.get("status") == "healthy"]
     failed = [r for r in results if r.get("status") != "healthy"]
     lines = [
-        "<b>📡 Источники</b>",
-        "",
+        "<b>📡 Источники</b>", "",
         "Всего: {}".format(len(results)),
         "✅ Работают: {}".format(len(healthy)),
         "❌ Не работают: {}".format(len(failed)),
@@ -293,50 +359,181 @@ def cmd_sources(api, chat_id):
     api.send_message(chat_id, "\n".join(lines))
 
 
-def cmd_help(api, chat_id):
-    cmd_start(api, chat_id)
+# ---------- Администраторские ----------
+
+def cmd_admin(api, chat_id):
+    lines = ["👑 <b>Администратор</b>", ""]
+    lines.append("<b>Управление пользователями:</b>")
+    for cmd in ("/users", "/adduser", "/removeuser"):
+        lines.append("  {} — {}".format(cmd, ADMIN_COMMANDS[cmd]))
+    lines.append("")
+    lines.append("<b>Управление ботом:</b>")
+    for cmd in ("/stats_admin", "/log"):
+        lines.append("  {} — {}".format(cmd, ADMIN_COMMANDS[cmd]))
+    api.send_message(chat_id, "\n".join(lines))
+
+
+def cmd_users(api, chat_id, config):
+    ids = config["allowed_chat_ids"]
+    owner = config.get("owner_id", 0)
+    lines = ["<b>👥 Пользователи бота</b>", ""]
+    for i, uid in enumerate(ids, 1):
+        mark = " 👑" if uid == owner else ""
+        lines.append("{}. <code>{}</code>{}".format(i, uid, mark))
+    lines.append("")
+    lines.append("Всего: {}".format(len(ids)))
+    api.send_message(chat_id, "\n".join(lines))
+
+
+def cmd_adduser(api, chat_id, config, arg):
+    if not arg or not arg.strip().lstrip("-").isdigit():
+        api.send_message(chat_id,
+                         "Используйте: /adduser &lt;id&gt;\n"
+                         "Пример: <code>/adduser 123456789</code>")
+        return
+    new_id = int(arg.strip())
+    if new_id in config["allowed_chat_ids"]:
+        api.send_message(chat_id,
+                         "⚠️ Пользователь <code>{}</code> уже в списке.".format(new_id))
+        return
+    config["allowed_chat_ids"].append(new_id)
+    save_telegram_config(config)
+    _log("OWNER {} added user {}".format(chat_id, new_id))
+    api.send_message(
+        chat_id,
+        "✅ Пользователь <code>{}</code> добавлен.\n\n"
+        "Теперь в whitelist: {}.".format(
+            new_id, len(config["allowed_chat_ids"])))
+
+
+def cmd_removeuser(api, chat_id, config, arg):
+    if not arg or not arg.strip().lstrip("-").isdigit():
+        api.send_message(chat_id, "Используйте: /removeuser &lt;id&gt;")
+        return
+    new_id = int(arg.strip())
+    owner = config.get("owner_id", 0)
+    if new_id == owner:
+        api.send_message(chat_id, "❌ Нельзя удалить владельца.")
+        return
+    if new_id not in config["allowed_chat_ids"]:
+        api.send_message(chat_id,
+                         "⚠️ Пользователь <code>{}</code> не найден.".format(new_id))
+        return
+    config["allowed_chat_ids"].remove(new_id)
+    save_telegram_config(config)
+    _log("OWNER {} removed user {}".format(chat_id, new_id))
+    api.send_message(
+        chat_id,
+        "✅ Пользователь <code>{}</code> удалён.\n\n"
+        "Осталось: {}.".format(
+            new_id, len(config["allowed_chat_ids"])))
+
+
+def cmd_admin_stats(api, chat_id):
+    items = load_recent_items(24)
+    health = load_health()
+    results = health.get("results", [])
+    healthy = sum(1 for r in results if r.get("status") == "healthy")
+    failed = len(results) - healthy
+    breaking = sum(1 for x in items if x.get("level") == "BREAKING")
+    alert = sum(1 for x in items if x.get("level") == "ALERT")
+    lines = [
+        "📊 <b>Статистика администратора</b>", "",
+        "<b>Новости (24ч):</b>",
+        "  Всего: {}".format(len(items)),
+        "  ⚡ BREAKING: {}".format(breaking),
+        "  ⚠ ALERT: {}".format(alert),
+        "",
+        "<b>Источники:</b>",
+        "  Всего: {}".format(len(results)),
+        "  ✅ Работают: {}".format(healthy),
+        "  ❌ Не работают: {}".format(failed),
+    ]
+    api.send_message(chat_id, "\n".join(lines))
+
+
+def cmd_admin_log(api, chat_id, lines_count=20):
+    if not BOT_LOG.exists():
+        api.send_message(chat_id, "Лог пуст.")
+        return
+    try:
+        with open(BOT_LOG, "r", encoding="utf-8") as f:
+            lines = f.readlines()[-lines_count:]
+        text = "".join(lines)
+        api.send_message(chat_id,
+                         "<b>Последние {} строк:</b>\n\n<pre>{}</pre>".format(
+                             len(lines), text[:3500]))
+    except Exception as e:
+        api.send_message(chat_id, "Ошибка чтения лога: {}".format(e))
 
 
 # ============================================================
-#  Обработчик команд
+#  Обработчик
 # ============================================================
 
-HANDLERS = {
-    "/start": cmd_start,
-    "/help": cmd_help,
-    "/latest": cmd_latest,
-    "/breaking": cmd_breaking,
-    "/stats": cmd_stats,
-    "/sources": cmd_sources,
-}
-
-
-def handle_update(api, update, allowed_chat_ids):
+def handle_update(api, update, config):
     msg = update.get("message")
     if not msg:
         return
+
     chat_id = msg.get("chat", {}).get("id")
     text = (msg.get("text") or "").strip()
 
     if not chat_id:
         return
 
-    # Whitelist: если список не пуст — пускать только своих
-    if allowed_chat_ids and chat_id not in allowed_chat_ids:
+    allowed = config["allowed_chat_ids"]
+    owner_id = config.get("owner_id", 0)
+    is_owner = (chat_id == owner_id)
+
+    if allowed and chat_id not in allowed:
         api.send_message(chat_id, "⛔ Доступ запрещён.")
+        _log("ACCESS DENIED for {}".format(chat_id))
         return
 
     if not text:
         return
 
-    if text.startswith("/search"):
-        query = text[7:].strip()
-        cmd_search(api, chat_id, query)
+    parts = text.split(maxsplit=1)
+    cmd = parts[0].lower()
+    arg = parts[1] if len(parts) > 1 else ""
+
+    # ADMIN-команды — только владелец
+    if cmd in ADMIN_COMMANDS:
+        if not is_owner:
+            api.send_message(chat_id,
+                             "⛔ Эта команда доступна только владельцу.")
+            _log("OWNER-CMD DENIED: user {} tried {}".format(chat_id, cmd))
+            return
+        if cmd == "/admin":
+            cmd_admin(api, chat_id)
+        elif cmd == "/users":
+            cmd_users(api, chat_id, config)
+        elif cmd == "/adduser":
+            cmd_adduser(api, chat_id, config, arg)
+        elif cmd == "/removeuser":
+            cmd_removeuser(api, chat_id, config, arg)
+        elif cmd == "/stats_admin":
+            cmd_admin_stats(api, chat_id)
+        elif cmd == "/log":
+            cmd_admin_log(api, chat_id)
         return
 
-    handler = HANDLERS.get(text.split()[0])
-    if handler:
-        handler(api, chat_id)
+    # Обычные команды
+    if cmd == "/start":
+        cmd_start(api, chat_id, is_owner=is_owner)
+    elif cmd in ("/help", "/menu"):
+        cmd_menu(api, chat_id, is_owner=is_owner)
+    elif cmd == "/latest":
+        cmd_latest(api, chat_id)
+    elif cmd == "/breaking":
+        cmd_breaking(api, chat_id)
+    elif cmd == "/stats":
+        cmd_stats(api, chat_id)
+    elif cmd == "/search":
+        cmd_search(api, chat_id, arg)
+    elif cmd == "/sources":
+        cmd_sources(api, chat_id)
     else:
         api.send_message(chat_id, "Неизвестная команда. /help")
 
@@ -347,15 +544,19 @@ def handle_update(api, update, allowed_chat_ids):
 
 def main():
     print("NEWS TERMINAL Bot — запуск")
-    cfg = load_telegram_config()
-    api = TelegramAPI(cfg["bot_token"])
-    allowed = cfg.get("allowed_chat_ids") or []
+    config = load_telegram_config()
+    api = TelegramAPI(config["bot_token"])
+    owner_id = config.get("owner_id", 0)
+    allowed = config["allowed_chat_ids"]
+
+    print("Owner ID: {}".format(owner_id))
+    print("Allowed users: {}".format(len(allowed)))
+    for uid in allowed:
+        mark = " 👑" if uid == owner_id else ""
+        print("  • {}{}".format(uid, mark))
 
     print("Бот запущен. Ctrl+C для выхода.")
-    if allowed:
-        print("Whitelist chat_id:", allowed)
-    else:
-        print("Whitelist пуст — отвечает всем.")
+    _log("Bot started. owner={} users={}".format(owner_id, len(allowed)))
 
     offset = 0
     while True:
@@ -367,14 +568,16 @@ def main():
             for update in result.get("result", []):
                 offset = update["update_id"] + 1
                 try:
-                    handle_update(api, update, allowed)
+                    handle_update(api, update, config)
                 except Exception as e:
                     print("Ошибка обработки:", e)
+                    _log("handle_update error: {}".format(e))
         except KeyboardInterrupt:
             print("\nОстановлено.")
             return 0
         except Exception as e:
             print("Ошибка polling:", e)
+            _log("polling error: {}".format(e))
             time.sleep(5)
 
 
