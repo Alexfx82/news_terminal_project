@@ -1,3 +1,7 @@
+#!/usr/bin/env python3
+# -*- coding: utf-8 -*-
+"""main.py — entry point."""
+
 import argparse
 import json
 import sys
@@ -18,11 +22,14 @@ def _check_updates_on_startup():
         info = check_for_updates()
         if info.get("ok") and info.get("available"):
             print()
-            print("╔══════════════════════════════════════════════════════════╗")
-            print("║  ДОСТУПНО ОБНОВЛЕНИЕ                                     ║")
-            print("╚══════════════════════════════════════════════════════════╝")
-            print("  Локально: {} {}".format(info["local_sha"], info["local_msg"][:50]))
-            print("  На GitHub: {} {}".format(info["remote_sha"], info["remote_msg"][:50]))
+            print("╔" + "═" * 60 + "╗")
+            print("║  ДОСТУПНО ОБНОВЛЕНИЕ" + " " * 39 + "║")
+            print("╚" + "═" * 60 + "╝")
+            print("  Локально:  {} {}".format(
+                info["local_sha"], info["local_msg"][:44]))
+            print("  На GitHub: {} {}".format(
+                info["remote_sha"], info["remote_msg"][:44]))
+            print("  Новых коммитов: {}".format(info["behind"]))
             print()
             print("  Обновить можно через меню [S] → пункт 9")
             print()
@@ -42,15 +49,18 @@ def run():
                         help="Проверить обновления и выйти")
     args = parser.parse_args()
 
-    # === Проверка обновлений, если запрошено ===
+    # === Только проверка обновлений ===
     if args.check_updates:
         from update import check_for_updates
         info = check_for_updates()
         if info["ok"]:
             if info["available"]:
                 print("Обновление доступно:")
-                print("  Локально:  {} {}".format(info["local_sha"], info["local_msg"]))
-                print("  На GitHub: {} {}".format(info["remote_sha"], info["remote_msg"]))
+                print("  Локально:  {} {}".format(
+                    info["local_sha"], info["local_msg"]))
+                print("  На GitHub: {} {}".format(
+                    info["remote_sha"], info["remote_msg"]))
+                print("  Новых коммитов: {}".format(info["behind"]))
             else:
                 print("Обновлений нет. Текущая версия:", info["local_sha"])
         else:
