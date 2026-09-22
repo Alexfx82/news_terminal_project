@@ -3,19 +3,34 @@
 """
 tg_bot.py — Telegram-бот для NEWS TERMINAL.
 
-Читает данные из news_history/ и data/.
 Роли:
-- OWNER (owner_id) — все команды + admin
+- OWNER (owner_id) — все команды + admin + push
 - USER (allowed_chat_ids) — только чтение
-- ОСТАЛЬНЫЕ — отказ "Доступ запрещён"
+- ОСТАЛЬНЫЕ — отказ
+
+Функции:
+- команды чтения (/latest, /breaking, /stats, /search, /sources)
+- admin (/admin, /users, /adduser, /removeuser, /stats_admin, /log)
+- push при BREAKING в отдельном потоке
+- автодайджест раз в день (опционально)
 """
 
 import json
+import os
 import sys
+import threading
 import time
 import urllib.request
 from datetime import datetime, timezone, timedelta
 from pathlib import Path
+
+# ============================================================
+#  Часовой пояс
+# ============================================================
+
+TIMEZONE_OFFSET_HOURS = 3
+LOCAL_TZ = timezone(timedelta(hours=TIMEZONE_OFFSET_HOURS))
+
 
 # ============================================================
 #  Пути
@@ -27,6 +42,7 @@ DATA_DIR = BASE / "data"
 HISTORY_DIR = BASE / "news_history"
 HEALTH_FILE = DATA_DIR / "source_health.json"
 BOT_LOG = DATA_DIR / "tg_bot.log"
+PUSH_STATE = DATA_DIR / "push_state.json"
 
 
 # ============================================================
@@ -51,14 +67,27 @@ def log(msg):
 def load_config():
     with open(CONFIG_FILE, "r", encoding="utf-8") as f:
         data = json.load(f)
+
     ids = data.get("allowed_chat_ids", [])
     if isinstance(ids, int):
         ids = [ids]
     elif isinstance(ids, str):
-        ids = [int(x.strip()) for x in ids.split(",") if x.strip().lstrip("-").isdigit()]
+        ids = [int(x.strip()) for x in ids.split(",")
+               if x.strip().lstrip("-").isdigit()]
     data["allowed_chat_ids"] = [int(x) for x in ids]
+
     if not data.get("owner_id") and data["allowed_chat_ids"]:
         data["owner_id"] = data["allowed_chat_ids"][0]
+
+    # Значения по умолчанию
+    data.setdefault("push_enabled", True)
+    data.setdefault("push_breaking", True)
+    data.setdefault("push_alert", False)
+    data.setdefault("push_throttle_seconds", 300)
+    data.setdefault("push_check_interval", 30)
+    data.setdefault("daily_digest", False)
+    data.setdefault("daily_digest_hour", 9)
+
     return data
 
 
@@ -87,7 +116,6 @@ def api(token, method, params=None, timeout=35):
 
 
 def send(token, chat_id, text, preview=False):
-    """Отправляет сообщение, разбивая длинные на части."""
     chunks = [text[i:i + 4000] for i in range(0, len(text), 4000)]
     for chunk in chunks:
         try:
@@ -108,7 +136,6 @@ def send(token, chat_id, text, preview=False):
 # ============================================================
 
 def load_items(hours=24):
-    """Читает все news_*.jsonl за N часов."""
     if not HISTORY_DIR.exists():
         return []
     cutoff = datetime.now(timezone.utc) - timedelta(hours=hours)
@@ -155,7 +182,6 @@ def load_health():
 
 
 def esc(text):
-    """Экранирует HTML-спецсимволы."""
     return (str(text)
             .replace("&", "&amp;")
             .replace("<", "&lt;")
@@ -163,15 +189,170 @@ def esc(text):
 
 
 def title_of(item):
-    """Русский заголовок или оригинал."""
     return item.get("title_ru") or item.get("title", "")
 
 
 def fmt_time(item, fmt="%H:%M"):
     try:
-        return item["time"].astimezone().strftime(fmt)
+        return item["time"].astimezone(LOCAL_TZ).strftime(fmt)
     except Exception:
         return "??:??"
+
+
+# ============================================================
+#  PUSH STATE — что уже отправлено
+# ============================================================
+
+def load_push_state():
+    if not PUSH_STATE.exists():
+        return {"sent_keys": [], "throttle": {}}
+    try:
+        with open(PUSH_STATE, "r", encoding="utf-8") as f:
+            return json.load(f)
+    except Exception:
+        return {"sent_keys": [], "throttle": {}}
+
+
+def save_push_state(state):
+    try:
+        DATA_DIR.mkdir(parents=True, exist_ok=True)
+        tmp = PUSH_STATE.with_suffix(".tmp")
+        with open(tmp, "w", encoding="utf-8") as f:
+            json.dump(state, f, ensure_ascii=False, indent=2)
+        tmp.replace(PUSH_STATE)
+    except Exception as e:
+        log("save_push_state error: {}".format(e))
+
+
+# ============================================================
+#  PUSHER — отдельный поток
+# ============================================================
+
+class Pusher:
+    """
+    Отдельный поток: проверяет news_history/ раз в N секунд,
+    отправляет новые BREAKING/ALERT владельцу.
+    """
+
+    def __init__(self, token, config):
+        self.token = token
+        self.config = config
+        self.stop_event = threading.Event()
+        self.thread = None
+        self.state = load_push_state()
+
+        # Ограничим sent_keys — хранить последние 2000
+        if len(self.state.get("sent_keys", [])) > 2000:
+            self.state["sent_keys"] = self.state["sent_keys"][-2000:]
+
+    def start(self):
+        if not self.config.get("push_enabled", True):
+            log("Pusher: disabled (push_enabled=false)")
+            return
+        self.thread = threading.Thread(target=self._loop, daemon=True)
+        self.thread.start()
+        log("Pusher: started")
+
+    def stop(self):
+        self.stop_event.set()
+
+    def _should_send(self, item):
+        """Решает, отправлять ли push для этого item."""
+        # 1. Проверка уровня
+        level = item.get("level", "NORMAL")
+        if level == "BREAKING" and self.config.get("push_breaking", True):
+            pass
+        elif level == "ALERT" and self.config.get("push_alert", False):
+            pass
+        else:
+            return False
+
+        # 2. Уже отправляли?
+        key = item.get("key")
+        if not key:
+            return False
+        if key in self.state.get("sent_keys", []):
+            return False
+
+        # 3. Throttle по topic_key
+        topic = item.get("topic_key", "")
+        throttle_sec = int(self.config.get("push_throttle_seconds", 300))
+        if topic:
+            last_sent = self.state.get("throttle", {}).get(topic, 0)
+            if time.time() - last_sent < throttle_sec:
+                return False
+
+        return True
+
+    def _send_push(self, item):
+        """Отправляет push владельцу."""
+        owner = self.config.get("owner_id", 0)
+        if not owner:
+            return
+
+        level = item.get("level", "NORMAL")
+        title = title_of(item)
+        source = item.get("source", "?")
+        ts = fmt_time(item)
+        key = item.get("key")
+        topic = item.get("topic_key", "")
+
+        if level == "BREAKING":
+            marker = "⚡ <b>BREAKING</b>"
+        else:
+            marker = "⚠ <b>ALERT</b>"
+
+        text = (
+            "{}\n\n"
+            "🕐 {}  📰 <b>{}</b>\n\n"
+            "{}"
+        ).format(marker, ts, esc(source), esc(title[:400]))
+
+        send(self.token, owner, text)
+
+        # Обновить state
+        if key:
+            self.state.setdefault("sent_keys", []).append(key)
+            if len(self.state["sent_keys"]) > 2000:
+                self.state["sent_keys"] = self.state["sent_keys"][-2000:]
+
+        if topic:
+            self.state.setdefault("throttle", {})[topic] = time.time()
+
+        save_push_state(self.state)
+        log("PUSH sent: {} | {}".format(level, title[:80]))
+
+    def _loop(self):
+        interval = int(self.config.get("push_check_interval", 30))
+
+        while not self.stop_event.is_set():
+            try:
+                # Читаем новые items за последние 30 минут
+                items = load_items(0.5)
+                items.sort(key=lambda x: x["time"])
+
+                sent_count = 0
+                for item in items:
+                    if self._should_send(item):
+                        self._send_push(item)
+                        sent_count += 1
+                        if sent_count >= 5:
+                            # не более 5 push за один цикл
+                            break
+                        time.sleep(0.5)
+
+                # Очистить старый throttle (старше 1 часа)
+                now = time.time()
+                self.state["throttle"] = {
+                    k: v for k, v in self.state.get("throttle", {}).items()
+                    if now - v < 3600
+                }
+                save_push_state(self.state)
+
+            except Exception as e:
+                log("Pusher error: {}".format(e))
+
+            self.stop_event.wait(interval)
 
 
 # ============================================================
@@ -192,6 +373,7 @@ def cmd_start(token, chat_id, is_owner):
             "",
             "👑 <b>Вы владелец.</b>",
             "  /admin — админ-меню",
+            "  /push — управление push-уведомлениями",
         ])
     send(token, chat_id, "\n".join(lines))
 
@@ -205,6 +387,9 @@ def cmd_admin(token, chat_id):
          "  /removeuser &lt;id&gt; — удалить\n"
          "\n"
          "<b>Управление ботом:</b>\n"
+         "  /push — статус push\n"
+         "  /push_on — включить push\n"
+         "  /push_off — выключить push\n"
          "  /stats_admin — расширенная статистика\n"
          "  /log — последние логи")
 
@@ -256,6 +441,42 @@ def cmd_removeuser(token, chat_id, config, arg):
     send(token, chat_id,
          "✅ Пользователь <code>{}</code> удалён.\n\n"
          "Осталось: {}.".format(rid, len(config["allowed_chat_ids"])))
+
+
+def cmd_push_status(token, chat_id, config):
+    enabled = config.get("push_enabled", True)
+    breaking = config.get("push_breaking", True)
+    alert = config.get("push_alert", False)
+    throttle = config.get("push_throttle_seconds", 300)
+    interval = config.get("push_check_interval", 30)
+
+    status = "✅ ВКЛЮЧЁН" if enabled else "❌ ВЫКЛЮЧЕН"
+    lines = [
+        "<b>🔔 Push-уведомления</b>",
+        "",
+        "Статус: {}".format(status),
+        "BREAKING: {}".format("✅" if breaking else "❌"),
+        "ALERT: {}".format("✅" if alert else "❌"),
+        "Throttle: {} сек".format(throttle),
+        "Проверка: раз в {} сек".format(interval),
+        "",
+        "<b>Команды:</b>",
+        "/push_on — включить push",
+        "/push_off — выключить push",
+    ]
+    send(token, chat_id, "\n".join(lines))
+
+
+def cmd_push_on(token, chat_id, config):
+    config["push_enabled"] = True
+    save_config(config)
+    send(token, chat_id, "✅ Push-уведомления <b>включены</b>.")
+
+
+def cmd_push_off(token, chat_id, config):
+    config["push_enabled"] = False
+    save_config(config)
+    send(token, chat_id, "❌ Push-уведомления <b>выключены</b>.")
 
 
 def cmd_latest(token, chat_id):
@@ -392,6 +613,9 @@ def cmd_stats_admin(token, chat_id):
     results = health.get("results", [])
     healthy = sum(1 for r in results if r.get("status") == "healthy")
 
+    push_state = load_push_state()
+    sent_count = len(push_state.get("sent_keys", []))
+
     lines = [
         "<b>📊 Статистика администратора</b>",
         "",
@@ -407,6 +631,9 @@ def cmd_stats_admin(token, chat_id):
         "  Всего: {}".format(len(results)),
         "  ✅ Работают: {}".format(healthy),
         "  ❌ Не работают: {}".format(len(results) - healthy),
+        "",
+        "<b>Push:</b>",
+        "  Отправлено всего: {}".format(sent_count),
         "",
         "<b>Файлы:</b>",
         "  news_history/: {} файлов".format(
@@ -443,7 +670,8 @@ def cmd_menu(token, chat_id, is_owner):
 # ============================================================
 
 ADMIN_CMDS = {"/admin", "/users", "/adduser", "/removeuser",
-              "/stats_admin", "/log"}
+              "/stats_admin", "/log",
+              "/push", "/push_on", "/push_off"}
 
 
 def handle(token, update, config):
@@ -491,6 +719,12 @@ def handle(token, update, config):
             cmd_stats_admin(token, chat_id)
         elif cmd == "/log":
             cmd_log(token, chat_id)
+        elif cmd == "/push":
+            cmd_push_status(token, chat_id, config)
+        elif cmd == "/push_on":
+            cmd_push_on(token, chat_id, config)
+        elif cmd == "/push_off":
+            cmd_push_off(token, chat_id, config)
         return
 
     # Обычные
@@ -525,7 +759,13 @@ def main():
 
     print("Owner:", owner, flush=True)
     print("Allowed:", allowed, flush=True)
-    log("Bot started. owner={} users={}".format(owner, len(allowed)))
+    print("Push:", config.get("push_enabled"), flush=True)
+    log("Bot started. owner={} users={} push={}".format(
+        owner, len(allowed), config.get("push_enabled")))
+
+    # Запустить pusher
+    pusher = Pusher(token, config)
+    pusher.start()
 
     # Сбросить старые апдейты
     try:
@@ -541,35 +781,33 @@ def main():
     offset = 0
     print("Listening...", flush=True)
 
-    while True:
-        try:
-            print("[{}] poll offset={}".format(
-                time.strftime("%H:%M:%S"), offset), flush=True)
-            r = api(token, "getUpdates",
-                    {"offset": offset, "timeout": 20},
-                    timeout=30)
-            count = len(r.get("result", []))
-            print("[{}] ok={} count={}".format(
-                time.strftime("%H:%M:%S"), r.get("ok"), count), flush=True)
+    try:
+        while True:
+            try:
+                r = api(token, "getUpdates",
+                        {"offset": offset, "timeout": 20},
+                        timeout=30)
+                if not r.get("ok"):
+                    time.sleep(5)
+                    continue
 
-            if not r.get("ok"):
+                for u in r.get("result", []):
+                    offset = u["update_id"] + 1
+                    try:
+                        handle(token, u, config)
+                    except Exception as e:
+                        print("[HANDLE] error:", e, flush=True)
+                        log("handle error: {}".format(e))
+            except KeyboardInterrupt:
+                print("\nStopped.", flush=True)
+                break
+            except Exception as e:
+                print("[POLL] error:", e, flush=True)
+                log("polling error: {}".format(e))
                 time.sleep(5)
-                continue
-
-            for u in r.get("result", []):
-                offset = u["update_id"] + 1
-                try:
-                    handle(token, u, config)
-                except Exception as e:
-                    print("[HANDLE] error:", e, flush=True)
-                    log("handle error: {}".format(e))
-        except KeyboardInterrupt:
-            print("\nStopped.", flush=True)
-            return 0
-        except Exception as e:
-            print("[POLL] error:", e, flush=True)
-            log("polling error: {}".format(e))
-            time.sleep(5)
+    finally:
+        pusher.stop()
+        return 0
 
 
 if __name__ == "__main__":
