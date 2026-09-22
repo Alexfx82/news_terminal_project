@@ -3,7 +3,7 @@
 """render.py — сборка кадра и формат строк."""
 
 import time
-from datetime import datetime, timedelta
+from datetime import datetime, timedelta, timezone
 
 from config import (
     Color, HISTORY_HOURS, now_utc, USE_SOURCE_COLORS, LANG_TAGS,
@@ -12,11 +12,27 @@ from config import (
     HOT_MARKER_BREAKING, HOT_MARKER_ALERT,
     HOT_MARKER_BREAKING_FLASH,
     HOT_SOURCE_COLOR, HOT_TITLE_COLOR, HOT_TIME_COLOR,
+    TIMEZONE_OFFSET_HOURS,
 )
 from textutils import box_line, top_border, mid_border, bottom_border, \
     fit_text, pad_visible, visible_width
 from news import dedup_by_topic, build_hot_topics, has_cjk
 from source_colors import get_source_color
+
+
+# ============================================================
+#  Часовой пояс для отображения времени
+# ============================================================
+
+LOCAL_TZ = timezone(timedelta(hours=TIMEZONE_OFFSET_HOURS))
+
+
+def _fmt_time(dt, fmt="%H:%M"):
+    """Форматирует datetime в локальном часовом поясе."""
+    try:
+        return dt.astimezone(LOCAL_TZ).strftime(fmt)
+    except Exception:
+        return "??:??"
 
 
 # ============================================================
@@ -105,7 +121,7 @@ FIRST_FIELD_W = 12
 
 
 def _first_field(item):
-    ts = item["time"].astimezone().strftime("%H:%M")
+    ts = _fmt_time(item["time"])
     ts_padded = pad_visible(ts, FIRST_FIELD_W)
 
     level = item.get("level", "NORMAL")
@@ -160,7 +176,7 @@ def _assemble_row(item, width, show_translation):
     )
 
     if visible_width(line) != width:
-        ts = item["time"].astimezone().strftime("%H:%M")
+        ts = _fmt_time(item["time"])
         base = pad_visible(ts, FIRST_FIELD_W) + " " + _source_tag_text(item) + " " + title
         return box_line(base, width)
 
@@ -213,27 +229,25 @@ def _format_hot_line(topic, width, show_translation=False):
 
     level = topic.get("level", "ALERT")
     source = fit_text(_hot_source_text(topic), 14)
-    update_time = topic["last_update"].astimezone().strftime("%H:%M")
+    update_time = _fmt_time(topic["last_update"])
 
-    # --- Маркер: только символ, без текста ---
+    # --- Маркер ---
     flash = _hot_flash_on(topic)
     age = max(0.0, time.time() - topic["last_update"].timestamp())
     faded = age >= HOT_FADE_AFTER_SECONDS
 
     if faded:
-        # приглушённый — серый
         marker_color = "\033[38;5;240m"
     elif flash:
-        marker_color = HOT_MARKER_BREAKING_FLASH   # красный фон (мигание)
+        marker_color = HOT_MARKER_BREAKING_FLASH
     elif level == "BREAKING":
-        marker_color = HOT_MARKER_BREAKING          # красный текст
+        marker_color = HOT_MARKER_BREAKING
     else:
-        marker_color = HOT_MARKER_ALERT             # жёлтый текст
+        marker_color = HOT_MARKER_ALERT
 
     marker = "⚡" if level == "BREAKING" else "⚠"
 
     # --- Раскладка ---
-    # время(5) + проб(2) + маркер(2 с отступом) + проб(1) + источник(14) + проб(1) + заголовок
     time_w = 5
     marker_w = 2
     source_w = 14
@@ -267,7 +281,9 @@ def _format_hot_line(topic, width, show_translation=False):
 
 
 def render_hot_board(topics, width, max_rows, show_translation=False):
-    """Отдельное окно TOP BREAKING — топ живых событий."""
+    """Отдельное окно TOP BREAKING."""
+    max_rows = max(1, int(max_rows))
+
     lines = [mid_border(width)]
     title = "⚡ TOP BREAKING  |  LIVE  |  {} SLOTS  |  < {} MIN".format(
         max_rows, HOT_TOPIC_MAX_AGE_MINUTES
@@ -275,16 +291,18 @@ def render_hot_board(topics, width, max_rows, show_translation=False):
     lines.append(box_line(title, width))
     lines.append(mid_border(width))
 
-    for topic in topics[:max_rows]:
-        lines.append(_format_hot_line(topic, width, show_translation))
+    shown = list(topics[:max_rows])
 
-    for _ in range(len(topics), max_rows):
+    for topic in shown:
+        lines.append(_format_hot_line(
+            topic, width, show_translation=show_translation
+        ))
+
+    for _ in range(len(shown), max_rows):
         lines.append(box_line("", width))
 
     lines.append(mid_border(width))
     return lines
-
-
 # ============================================================
 #  Ticker
 # ============================================================
@@ -332,7 +350,7 @@ def build_frame_lines(history, width, height, source_health,
     lines = []
     lines.append(top_border(width))
 
-    now = datetime.now().strftime("%d %b %Y  %H:%M:%S")
+    now = datetime.now(LOCAL_TZ).strftime("%d %b %Y  %H:%M:%S")
     live_dot = "● LIVE" if int(time.time()) % 2 == 0 else "○ LIVE"
     lang_tag = "RU" if show_translation else "EN"
     lines.append(box_line(

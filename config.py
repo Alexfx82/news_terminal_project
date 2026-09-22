@@ -37,15 +37,22 @@ FAST_FETCH_INTERVAL = 15
 FAST_PRIORITY_THRESHOLD = 95
 FLASH_DURATION = 3.0
 
+# ========== TIMEZONE ==========
+# Смещение от UTC в часах для отображения времени новостей.
+# MSK = 3, Berlin = 1 (или 2 летом), New York = -5, UTC = 0.
+TIMEZONE_OFFSET_HOURS = 3
+
 # ========== TOP BREAKING BOARD ==========
-# ========== TOP BREAKING BOARD ==========
-HOT_TOPIC_MAX = 6
-HOT_TOPIC_TTL_SECONDS = 15 * 60
-HOT_TOPIC_HARD_TTL_SECONDS = 45 * 60
-HOT_TOPIC_MIN_SIMILARITY = 0.60
-HOT_TOPIC_MAX_AGE_MINUTES = 15
-HOT_NEW_FLASH_SECONDS = 8
-HOT_FADE_AFTER_SECONDS = 12 * 60
+HOT_TOPIC_MAX = 6                     # слотов на экране
+HOT_TOPIC_TTL_SECONDS = 15 * 60       # 15 минут тишины → тема уходит
+HOT_TOPIC_HARD_TTL_SECONDS = 45 * 60  # абсолютный лимит жизни
+HOT_TOPIC_MIN_SIMILARITY = 0.34       # порог похожести для продолжения
+HOT_TOPIC_MAX_AGE_MINUTES = 15        # максимум для отображения
+HOT_TOPIC_BOOTSTRAP_MINUTES = 8       # что брать при старте
+HOT_TOPIC_MAX_INPUT_AGE_SECONDS = 30 * 60  # совсем старые не воскрешаем
+HOT_NEW_FLASH_SECONDS = 8             # мигание новой темы
+HOT_FADE_AFTER_SECONDS = 12 * 60      # приглушение через 12 мин
+
 
 # Цвета маркеров TOP BREAKING (без жирности — только цвет)
 HOT_MARKER_BREAKING = "\033[38;5;196m"        # красный

@@ -8,6 +8,8 @@ tg_bot.py — Telegram-бот для NEWS TERMINAL.
 - OWNER (owner_id) — все команды + admin
 - USER (allowed_chat_ids) — только чтение
 - ОСТАЛЬНЫЕ — отказ "Доступ запрещён"
+
+Время отображается в часовом поясе LOCAL_TZ (по умолчанию MSK = UTC+3).
 """
 
 import json
@@ -16,6 +18,15 @@ import time
 import urllib.request
 from datetime import datetime, timezone, timedelta
 from pathlib import Path
+
+# ============================================================
+#  Часовой пояс для отображения времени
+# ============================================================
+
+# MSK = UTC+3. Чтобы изменить — поменяйте число часов.
+TIMEZONE_OFFSET_HOURS = 3
+LOCAL_TZ = timezone(timedelta(hours=TIMEZONE_OFFSET_HOURS))
+
 
 # ============================================================
 #  Пути
@@ -168,8 +179,9 @@ def title_of(item):
 
 
 def fmt_time(item, fmt="%H:%M"):
+    """Форматирует время новости в локальном часовом поясе (MSK)."""
     try:
-        return item["time"].astimezone().strftime(fmt)
+        return item["time"].astimezone(LOCAL_TZ).strftime(fmt)
     except Exception:
         return "??:??"
 
