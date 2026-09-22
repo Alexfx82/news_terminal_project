@@ -303,46 +303,27 @@ def _topic_cluster_key(title, existing):
     return hashlib.sha1(normalized.encode("utf-8")).hexdigest()[:16]
 
 
-def build_hot_topics(history, now=None, limit=None):
-    """
-    Строит TOP BREAKING — топ живых событий.
-
-    Логика:
-      * только BREAKING и ALERT за последние HOT_TOPIC_MAX_AGE_MINUTES;
-      * кластеризация по похожести (одно событие = один слот);
-      * сортировка по свежести (last_update DESC);
-      * тай-брейк по количеству источников;
-      * TTL по молчанию (HOT_TOPIC_TTL_SECONDS);
-      * жёсткий лимит жизни (HOT_TOPIC_HARD_TTL_SECONDS).
-    """
-    from config import HOT_TOPIC_MAX_AGE_MINUTES
-
+def build_hot_topics(history, now=None, limit=HOT_TOPIC_MAX):
     if now is None:
         now = now_utc()
-    if limit is None:
-        limit = HOT_TOPIC_MAX
 
-    # 1. Только свежие BREAKING/ALERT
-    cutoff = now - timedelta(minutes=HOT_TOPIC_MAX_AGE_MINUTES)
     candidates = [
         item for item in history
         if item.get("level") in ("BREAKING", "ALERT")
-        and item["time"] >= cutoff
     ]
     candidates.sort(key=lambda x: x.get("time", now), reverse=True)
 
-    # 2. Кластеризация по похожести
     clusters = []
     for item in candidates:
         age = (now - item["time"]).total_seconds()
+        if age < 0:
+            age = 0
         if age > HOT_TOPIC_HARD_TTL_SECONDS:
             continue
 
         matched = None
         for cluster in clusters:
-            if _topic_similarity(
-                item["title"], cluster["representative_title"]
-            ) >= HOT_TOPIC_MIN_SIMILARITY:
+            if _topic_similarity(item["title"], cluster["representative_title"]) >= HOT_TOPIC_MIN_SIMILARITY:
                 matched = cluster
                 break
 
@@ -370,17 +351,21 @@ def build_hot_topics(history, now=None, limit=None):
         if item.get("level") == "BREAKING":
             matched["level"] = "BREAKING"
 
-    # 3. Фильтр TTL + сборка результата
     active = []
     for cluster in clusters:
         silence = (now - cluster["last_update"]).total_seconds()
         lifetime = (now - cluster["first_seen"]).total_seconds()
-        if silence > HOT_TOPIC_TTL_SECONDS:
-            continue
-        if lifetime > HOT_TOPIC_HARD_TTL_SECONDS:
+        if silence > HOT_TOPIC_TTL_SECONDS or lifetime > HOT_TOPIC_HARD_TTL_SECONDS:
             continue
 
         latest = cluster["latest"]
+        age = (now - latest["time"]).total_seconds()
+        freshness = max(0, 100 - int(age / 10))
+        source_bonus = min(40, len(cluster["sources"]) * 10)
+        level_bonus = 80 if cluster["level"] == "BREAKING" else 35
+        priority_bonus = int(latest.get("priority", 50)) // 5
+        score = freshness + source_bonus + level_bonus + priority_bonus
+
         active.append({
             "hot_key": cluster["hot_key"],
             "item": latest,
@@ -391,13 +376,9 @@ def build_hot_topics(history, now=None, limit=None):
             "first_seen": cluster["first_seen"],
             "last_update": cluster["last_update"],
             "silence_seconds": int(silence),
+            "score": score,
             "updates": len(cluster["items"]),
         })
 
-    # 4. Сортировка: свежие сверху, тай-брейк — по числу источников
-    active.sort(
-        key=lambda x: (x["last_update"], x["source_count"]),
-        reverse=True,
-    )
-
+    active.sort(key=lambda x: (x["score"], x["last_update"]), reverse=True)
     return active[:limit]

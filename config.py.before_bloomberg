@@ -37,32 +37,25 @@ FAST_FETCH_INTERVAL = 15
 FAST_PRIORITY_THRESHOLD = 95
 FLASH_DURATION = 3.0
 
-# ========== TOP BREAKING BOARD ==========
-# ========== TOP BREAKING BOARD ==========
-HOT_TOPIC_MAX = 6
-HOT_TOPIC_TTL_SECONDS = 15 * 60
+# ------------------------------------------------------------
+# BREAKING NEWS board
+# ------------------------------------------------------------
+# Максимальное количество одновременно живых горячих тем.
+HOT_TOPIC_MAX = 4
+# Если по теме нет нового сообщения столько времени — слот освобождается.
+HOT_TOPIC_TTL_SECONDS = 20 * 60
+# Абсолютный максимум жизни одной hot-темы, даже если старые сообщения ещё есть.
 HOT_TOPIC_HARD_TTL_SECONDS = 45 * 60
+# Минимальная похожесть заголовков, чтобы считать их продолжением одной темы.
 HOT_TOPIC_MIN_SIMILARITY = 0.60
-HOT_TOPIC_MAX_AGE_MINUTES = 15
+# Сколько секунд новая/обновлённая тема визуально мигает.
 HOT_NEW_FLASH_SECONDS = 8
+# После этого возраста не обновлявшаяся тема визуально приглушается.
 HOT_FADE_AFTER_SECONDS = 12 * 60
-
-# Цвета маркеров TOP BREAKING (без жирности — только цвет)
-HOT_MARKER_BREAKING = "\033[38;5;196m"        # красный
-HOT_MARKER_ALERT = "\033[38;5;220m"           # жёлтый
-HOT_MARKER_BREAKING_FLASH = "\033[48;5;196;97m"  # красный фон (мигание)
-HOT_SOURCE_COLOR = "\033[38;5;244m"           # серый для источника
-HOT_TITLE_COLOR = "\033[38;5;252m"            # светлый для заголовка
-HOT_TIME_COLOR = "\033[38;5;240m"             # тёмно-серый для времени
 
 LANG_TOGGLE_SECONDS = 3
 TRANSLATION_RATE_LIMIT = 3.0        # пауза между запросами (было 1.2)
 TRANSLATION_TARGET_LANG = "ru"
-
-
-# Глобальный флаг: включён ли перевод вообще.
-# False — перевод не запускается, Google не дёргается, кэш не трогается.
-TRANSLATION_ENABLED = False
 
 # Сколько 429-х подряд считаются «сервис заблокирован»
 TRANSLATION_FAIL_THRESHOLD = 3
@@ -70,7 +63,7 @@ TRANSLATION_FAIL_THRESHOLD = 3
 TRANSLATION_COOLDOWN_SECONDS = 600   # 10 минут
 
 # Языки источников, которые нужно переводить на русский
-TRANSLATION_SOURCE_LANGS = []
+TRANSLATION_SOURCE_LANGS = ["en", "zh", "de", "fr", "es"]
 
 # Пометки языков источников (для отображения в ленте)
 LANG_TAGS = {
@@ -93,38 +86,24 @@ class Color:
     RESET = "\033[0m"
     BOLD = "\033[1m"
     DIM = "\033[2m"
-
     BLACK = "\033[30m"
     WHITE = "\033[37m"
     BRIGHT_WHITE = "\033[97m"
     GRAY = "\033[90m"
-    GRAY_DIM = "\033[38;5;240m"
-
-    AMBER = "\033[38;5;214m"
-    AMBER_BOLD = "\033[1;38;5;214m"
-    AMBER_DIM = "\033[38;5;136m"
-
-    GREEN = "\033[38;5;46m"
-    GREEN_BRIGHT = "\033[1;38;5;46m"
-
-    RED_BRIGHT = "\033[1;38;5;196m"
-    YELLOW_TEXT = "\033[38;5;220m"
-    BRIGHT_YELLOW = "\033[93m"
     BRIGHT_CYAN = "\033[96m"
+    BRIGHT_YELLOW = "\033[93m"
     BRIGHT_GREEN = "\033[92m"
-    BRIGHT_RED = "\033[91m"
-
     BG_BLUE = "\033[44m"
     BG_CYAN = "\033[46m"
     BG_RED = "\033[41m"
     BG_YELLOW = "\033[43m"
     BG_BLACK = "\033[40m"
     BG_GREEN = "\033[42m"
-
     RU_SOURCE = BG_BLUE + BRIGHT_WHITE
     WORLD_SOURCE = BG_CYAN + BLACK
-    ALERT = "\033[1;38;5;220m"
-    BREAKING = "\033[1;48;5;196;97m"
+    ALERT = BG_YELLOW + BLACK
+    BREAKING = BG_RED + BRIGHT_WHITE
+
 
 def enable_windows_ansi():
     if os.name != "nt":

@@ -8,10 +8,6 @@ from datetime import datetime, timedelta
 from config import (
     Color, HISTORY_HOURS, now_utc, USE_SOURCE_COLORS, LANG_TAGS,
     HOT_TOPIC_MAX, HOT_NEW_FLASH_SECONDS, HOT_FADE_AFTER_SECONDS,
-    HOT_TOPIC_MAX_AGE_MINUTES,
-    HOT_MARKER_BREAKING, HOT_MARKER_ALERT,
-    HOT_MARKER_BREAKING_FLASH,
-    HOT_SOURCE_COLOR, HOT_TITLE_COLOR, HOT_TIME_COLOR,
 )
 from textutils import box_line, top_border, mid_border, bottom_border, \
     fit_text, pad_visible, visible_width
@@ -51,22 +47,29 @@ def pick_title(item, show_translation):
     if item.get("title_ru"):
         return item["title_ru"]
 
+    # нет перевода
     if lang == "zh":
+        # китайский никогда не показываем
         return None
     if show_translation:
-        return None
+        return None   # любая не-RU новость без перевода — не показываем
     return item["title"]
 
 
 def is_renderable(item, show_translation):
-    """True, если новость можно показывать."""
+    """
+    True, если новость можно показывать.
+    Китайские и другие не-RU источники показываются только с переводом.
+    """
     lang = item.get("language", "") or "ru"
     if lang == "ru":
         return True
     if item.get("title_ru"):
         return True
+    # если есть китайские иероглифы в оригинале — не рендерим
     if has_cjk(item.get("title", "")):
         return False
+    # если show_translation=False и это не ru — показываем оригинал
     if not show_translation:
         return True
     return False
@@ -142,6 +145,7 @@ def _assemble_row(item, width, show_translation):
     title = pick_title(item, show_translation)
 
     if title is None:
+        # не должно происходить — вызывающий код фильтрует через is_renderable
         title = "… (перевод готовится)"
 
     title_space = inner - FIRST_FIELD_W - 1 - 14 - 1
@@ -176,8 +180,11 @@ def format_news_line(item, width, show_translation=False):
 
 
 # ============================================================
-#  TOP BREAKING BOARD
+#  BREAKING NEWS BOARD
 # ============================================================
+
+HOT_BOARD_ROWS = HOT_TOPIC_MAX
+
 
 def _hot_flash_on(topic):
     age = max(0.0, time.time() - topic["last_update"].timestamp())
@@ -198,12 +205,6 @@ def _hot_source_text(topic):
 
 
 def _format_hot_line(topic, width, show_translation=False):
-    """
-    Гармоничная раскладка TOP BREAKING:
-      22:30  ⚡  [РИА]           Заголовок обычным цветом
-             ↑    ↑              ↑
-          время  маркер  источник
-    """
     inner = width - 2
     item = topic["item"]
     title = pick_title(item, show_translation)
@@ -212,66 +213,44 @@ def _format_hot_line(topic, width, show_translation=False):
         title = "… (перевод готовится)"
 
     level = topic.get("level", "ALERT")
-    source = fit_text(_hot_source_text(topic), 14)
-    update_time = topic["last_update"].astimezone().strftime("%H:%M")
+    source = fit_text(_hot_source_text(topic), 16)
+    updates = topic.get("updates", 1)
 
-    # --- Маркер: только символ, без текста ---
-    flash = _hot_flash_on(topic)
-    age = max(0.0, time.time() - topic["last_update"].timestamp())
-    faded = age >= HOT_FADE_AFTER_SECONDS
-
-    if faded:
-        # приглушённый — серый
-        marker_color = "\033[38;5;240m"
-    elif flash:
-        marker_color = HOT_MARKER_BREAKING_FLASH   # красный фон (мигание)
+    if _hot_flash_on(topic):
+        marker = "⚡ BREAKING"
+        marker_color = Color.BREAKING
     elif level == "BREAKING":
-        marker_color = HOT_MARKER_BREAKING          # красный текст
+        marker = "⚡ BREAKING"
+        marker_color = Color.BREAKING
     else:
-        marker_color = HOT_MARKER_ALERT             # жёлтый текст
+        marker = "⚠ ALERT"
+        marker_color = Color.ALERT
 
-    marker = "⚡" if level == "BREAKING" else "⚠"
+    age = max(0.0, time.time() - topic["last_update"].timestamp())
+    if age >= HOT_FADE_AFTER_SECONDS:
+        marker_color = Color.GRAY
 
-    # --- Раскладка ---
-    # время(5) + проб(2) + маркер(2 с отступом) + проб(1) + источник(14) + проб(1) + заголовок
-    time_w = 5
-    marker_w = 2
-    source_w = 14
-    title_w = inner - time_w - 2 - marker_w - 1 - source_w - 1
-    if title_w < 10:
-        title_w = 10
-    title_fit = fit_text(title, title_w)
+    left_w = 12
+    source_w = 16
+    title_w = inner - left_w - 1 - source_w - 1
+    title_fit = fit_text(title, max(5, title_w))
 
-    time_part = HOT_TIME_COLOR + update_time + Color.RESET
-    marker_part = marker_color + marker + Color.RESET
-    source_part = HOT_SOURCE_COLOR + pad_visible(source, source_w) + Color.RESET
-    title_part = HOT_TITLE_COLOR + pad_visible(title_fit, title_w) + Color.RESET
+    first = marker_color + fit_text(marker, left_w) + Color.RESET
+    src = Color.BRIGHT_YELLOW + pad_visible(source, source_w) + Color.RESET
+    title_color = Color.BRIGHT_WHITE if level == "BREAKING" else Color.WHITE
+    title_part = title_color + pad_visible(title_fit, title_w) + Color.RESET
 
-    line = (
-        "║"
-        + time_part
-        + "  "
-        + marker_part
-        + " "
-        + source_part
-        + " "
-        + title_part
-        + "║"
-    )
-
+    line = "║" + first + " " + src + " " + title_part + "║"
     if visible_width(line) != width:
         return box_line(
-            "{} {} {} {}".format(update_time, marker, source, title),
+            "{} [{}] {}  upd:{}".format(marker, source, title, updates),
             width)
     return line
 
 
 def render_hot_board(topics, width, max_rows, show_translation=False):
-    """Отдельное окно TOP BREAKING — топ живых событий."""
     lines = [mid_border(width)]
-    title = "⚡ TOP BREAKING  |  LIVE  |  {} SLOTS  |  < {} MIN".format(
-        max_rows, HOT_TOPIC_MAX_AGE_MINUTES
-    )
+    title = "⚡ BREAKING NEWS  |  LIVE HOT TOPICS  |  {} SLOTS".format(max_rows)
     lines.append(box_line(title, width))
     lines.append(mid_border(width))
 
@@ -339,9 +318,13 @@ def build_frame_lines(history, width, height, source_health,
         "NEWS TERMINAL   {}   {}   LANG:{}".format(now, live_dot, lang_tag),
         width))
 
+    # ===== Основная дедупликация =====
     unique_all = dedup_by_topic(list(history))
+
+    # ===== Отфильтровываем то, что нельзя показать =====
     unique_items = [x for x in unique_all if is_renderable(x, show_translation)]
 
+    # ===== Горячие темы =====
     hot_topics_all = build_hot_topics(history, now_utc())
     hot_topics = [t for t in hot_topics_all
                   if is_renderable(t["item"], show_translation)]
@@ -354,6 +337,7 @@ def build_frame_lines(history, width, height, source_health,
     healthy = sum(1 for x in source_health.values()
                   if x.get("status") == "healthy")
 
+    # ===== Адаптивное число слотов под экран =====
     hot_rows = min(HOT_TOPIC_MAX, max(2, height // 6))
 
     stats = "SRC {}/{}  TOTAL {}  ⚡ {}  ⚠ {}  HOT {}/{}  RU {}  WORLD {}".format(
@@ -361,6 +345,7 @@ def build_frame_lines(history, width, height, source_health,
         len(hot_topics), hot_rows, ru, world)
     lines.append(box_line(stats, width))
 
+    # ===== Окно горячих тем =====
     lines.extend(render_hot_board(
         hot_topics, width, hot_rows, show_translation=show_translation))
 
@@ -369,11 +354,7 @@ def build_frame_lines(history, width, height, source_health,
     news_slots = max(0, height - used_top - reserved_bottom)
 
     hot_item_keys = {x["item"].get("key") for x in hot_topics}
-    stream = [
-        x for x in unique_items
-        if x.get("key") not in hot_item_keys
-        and x.get("level") == "NORMAL"
-    ]
+    stream = [x for x in unique_items if x.get("key") not in hot_item_keys]
     stream.sort(key=lambda x: x["time"], reverse=True)
 
     for item in stream[:news_slots]:

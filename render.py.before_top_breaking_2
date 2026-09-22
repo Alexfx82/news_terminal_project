@@ -9,9 +9,6 @@ from config import (
     Color, HISTORY_HOURS, now_utc, USE_SOURCE_COLORS, LANG_TAGS,
     HOT_TOPIC_MAX, HOT_NEW_FLASH_SECONDS, HOT_FADE_AFTER_SECONDS,
     HOT_TOPIC_MAX_AGE_MINUTES,
-    HOT_MARKER_BREAKING, HOT_MARKER_ALERT,
-    HOT_MARKER_BREAKING_FLASH,
-    HOT_SOURCE_COLOR, HOT_TITLE_COLOR, HOT_TIME_COLOR,
 )
 from textutils import box_line, top_border, mid_border, bottom_border, \
     fit_text, pad_visible, visible_width
@@ -198,12 +195,6 @@ def _hot_source_text(topic):
 
 
 def _format_hot_line(topic, width, show_translation=False):
-    """
-    Гармоничная раскладка TOP BREAKING:
-      22:30  ⚡  [РИА]           Заголовок обычным цветом
-             ↑    ↑              ↑
-          время  маркер  источник
-    """
     inner = width - 2
     item = topic["item"]
     title = pick_title(item, show_translation)
@@ -213,55 +204,53 @@ def _format_hot_line(topic, width, show_translation=False):
 
     level = topic.get("level", "ALERT")
     source = fit_text(_hot_source_text(topic), 14)
+
+    # Время последнего обновления
     update_time = topic["last_update"].astimezone().strftime("%H:%M")
 
-    # --- Маркер: только символ, без текста ---
-    flash = _hot_flash_on(topic)
-    age = max(0.0, time.time() - topic["last_update"].timestamp())
-    faded = age >= HOT_FADE_AFTER_SECONDS
-
-    if faded:
-        # приглушённый — серый
-        marker_color = "\033[38;5;240m"
-    elif flash:
-        marker_color = HOT_MARKER_BREAKING_FLASH   # красный фон (мигание)
+    # Маркер
+    if _hot_flash_on(topic):
+        marker = "⚡BREAK"
+        marker_color = "\033[1;48;5;196;97m"     # красный фон, белый жирный
     elif level == "BREAKING":
-        marker_color = HOT_MARKER_BREAKING          # красный текст
+        marker = "⚡BREAK"
+        marker_color = "\033[1;38;5;196m"        # ярко-красный жирный
     else:
-        marker_color = HOT_MARKER_ALERT             # жёлтый текст
+        marker = "⚠ALERT"
+        marker_color = "\033[1;38;5;220m"        # ярко-жёлтый жирный
 
-    marker = "⚡" if level == "BREAKING" else "⚠"
+    age = max(0.0, time.time() - topic["last_update"].timestamp())
+    if age >= HOT_FADE_AFTER_SECONDS:
+        marker_color = Color.GRAY_DIM
 
-    # --- Раскладка ---
-    # время(5) + проб(2) + маркер(2 с отступом) + проб(1) + источник(14) + проб(1) + заголовок
+    # Раскладка: время(5) + пробел(1) + маркер(7) + пробел(1) + источник(14) + пробел(1) + заголовок
     time_w = 5
-    marker_w = 2
+    marker_w = 7
     source_w = 14
-    title_w = inner - time_w - 2 - marker_w - 1 - source_w - 1
-    if title_w < 10:
-        title_w = 10
+    title_w = inner - time_w - 1 - marker_w - 1 - source_w - 1
+    if title_w < 5:
+        title_w = 5
+
     title_fit = fit_text(title, title_w)
 
-    time_part = HOT_TIME_COLOR + update_time + Color.RESET
-    marker_part = marker_color + marker + Color.RESET
-    source_part = HOT_SOURCE_COLOR + pad_visible(source, source_w) + Color.RESET
-    title_part = HOT_TITLE_COLOR + pad_visible(title_fit, title_w) + Color.RESET
+    time_part = Color.GRAY_DIM + update_time + Color.RESET
+    first = marker_color + pad_visible(marker, marker_w) + Color.RESET
+    src = "\033[1;38;5;220m" + pad_visible(source, source_w) + Color.RESET
+    title_color = "\033[1;97m" if level == "BREAKING" else "\033[1;97m"
+    title_part = title_color + pad_visible(title_fit, title_w) + Color.RESET
 
     line = (
         "║"
-        + time_part
-        + "  "
-        + marker_part
-        + " "
-        + source_part
-        + " "
+        + time_part + " "
+        + first + " "
+        + src + " "
         + title_part
         + "║"
     )
 
     if visible_width(line) != width:
         return box_line(
-            "{} {} {} {}".format(update_time, marker, source, title),
+            "{} {} [{}] {}".format(update_time, marker, source, title),
             width)
     return line
 
@@ -339,9 +328,13 @@ def build_frame_lines(history, width, height, source_health,
         "NEWS TERMINAL   {}   {}   LANG:{}".format(now, live_dot, lang_tag),
         width))
 
+    # ===== Основная дедупликация =====
     unique_all = dedup_by_topic(list(history))
+
+    # ===== Отфильтровываем то, что нельзя показать =====
     unique_items = [x for x in unique_all if is_renderable(x, show_translation)]
 
+    # ===== Горячие темы (TOP BREAKING) =====
     hot_topics_all = build_hot_topics(history, now_utc())
     hot_topics = [t for t in hot_topics_all
                   if is_renderable(t["item"], show_translation)]
@@ -354,6 +347,7 @@ def build_frame_lines(history, width, height, source_health,
     healthy = sum(1 for x in source_health.values()
                   if x.get("status") == "healthy")
 
+    # ===== Адаптивное число слотов под экран =====
     hot_rows = min(HOT_TOPIC_MAX, max(2, height // 6))
 
     stats = "SRC {}/{}  TOTAL {}  ⚡ {}  ⚠ {}  HOT {}/{}  RU {}  WORLD {}".format(
@@ -361,6 +355,7 @@ def build_frame_lines(history, width, height, source_health,
         len(hot_topics), hot_rows, ru, world)
     lines.append(box_line(stats, width))
 
+    # ===== Окно TOP BREAKING =====
     lines.extend(render_hot_board(
         hot_topics, width, hot_rows, show_translation=show_translation))
 
@@ -368,6 +363,7 @@ def build_frame_lines(history, width, height, source_health,
     reserved_bottom = 6
     news_slots = max(0, height - used_top - reserved_bottom)
 
+    # ===== Основная лента: только NORMAL =====
     hot_item_keys = {x["item"].get("key") for x in hot_topics}
     stream = [
         x for x in unique_items

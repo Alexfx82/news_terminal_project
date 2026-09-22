@@ -38,22 +38,13 @@ FAST_PRIORITY_THRESHOLD = 95
 FLASH_DURATION = 3.0
 
 # ========== TOP BREAKING BOARD ==========
-# ========== TOP BREAKING BOARD ==========
-HOT_TOPIC_MAX = 6
-HOT_TOPIC_TTL_SECONDS = 15 * 60
-HOT_TOPIC_HARD_TTL_SECONDS = 45 * 60
-HOT_TOPIC_MIN_SIMILARITY = 0.60
-HOT_TOPIC_MAX_AGE_MINUTES = 15
-HOT_NEW_FLASH_SECONDS = 8
-HOT_FADE_AFTER_SECONDS = 12 * 60
-
-# Цвета маркеров TOP BREAKING (без жирности — только цвет)
-HOT_MARKER_BREAKING = "\033[38;5;196m"        # красный
-HOT_MARKER_ALERT = "\033[38;5;220m"           # жёлтый
-HOT_MARKER_BREAKING_FLASH = "\033[48;5;196;97m"  # красный фон (мигание)
-HOT_SOURCE_COLOR = "\033[38;5;244m"           # серый для источника
-HOT_TITLE_COLOR = "\033[38;5;252m"            # светлый для заголовка
-HOT_TIME_COLOR = "\033[38;5;240m"             # тёмно-серый для времени
+HOT_TOPIC_MAX = 6                        # слотов на экране
+HOT_TOPIC_TTL_SECONDS = 15 * 60          # 15 минут без обновлений
+HOT_TOPIC_HARD_TTL_SECONDS = 45 * 60     # абсолютный лимит жизни
+HOT_TOPIC_MIN_SIMILARITY = 0.60          # порог схожести для кластеризации
+HOT_TOPIC_MAX_AGE_MINUTES = 15           # брать только свежие события
+HOT_NEW_FLASH_SECONDS = 8                # сколько мигает новая тема
+HOT_FADE_AFTER_SECONDS = 12 * 60         # через сколько тускнеет
 
 LANG_TOGGLE_SECONDS = 3
 TRANSLATION_RATE_LIMIT = 3.0        # пауза между запросами (было 1.2)
